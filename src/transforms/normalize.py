@@ -4,20 +4,11 @@ from torch import nn
 
 class Normalize1D(nn.Module):
     """
-    Batch-version of Normalize for 1D Input.
-    Used as an example of a batch transform.
+    Batch-version of Normalize for audio input.
     """
 
-    def __init__(self, mean, std):
-        """
-        Args:
-            mean (float): mean used in the normalization.
-            std (float): std used in the normalization.
-        """
+    def __init__(self):
         super().__init__()
-
-        self.mean = mean
-        self.std = std
 
     def forward(self, x):
         """
@@ -26,5 +17,6 @@ class Normalize1D(nn.Module):
         Returns:
             x (Tensor): normalized tensor.
         """
-        x = (x - self.mean) / self.std
+        peak_amp = x.abs().max()
+        x /= peak_amp
         return x
