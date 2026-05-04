@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from torch.nn.utils import weight_norm
+from torch.nn.utils.parametrizations import weight_norm
 
 from src.model.convolution_blocks import (
     CausalConv1d,
@@ -163,7 +163,10 @@ class WaveDiscriminator(nn.Module):
             feats.append(x)
 
         out = feats[-1]
-        return out, feats
+        return {
+            "logits": out,
+            "features": feats[:-1],
+        }
 
 
 class STFTDiscriminator(nn.Module):
@@ -230,12 +233,16 @@ class STFTDiscriminator(nn.Module):
         x = x.permute(0, 3, 2, 1)  # (B, 2, frames, bins)
 
         feats = []
-        for layer in self.layers:
+        for i, layer in enumerate(self.layers):
             x = layer(x)
-            feats.append(x)
+            if i < len(self.layers) - 1:
+                feats.append(x)
 
-        out = feats[-1]
-        return out, feats
+        out = x.squeeze(-1)
+        return {
+            "logits": out,
+            "features": feats,
+        }
 
 
 class SoundStreamDiscriminator(nn.Module):
@@ -249,11 +256,15 @@ class SoundStreamDiscriminator(nn.Module):
         )
 
     def forward(self, x):
-        outputs = [self.stft(x)]
+        mid = self.stft(x)
+        output = {k: [v] for k, v in mid.items()}
 
         for i, d in enumerate(self.waves):
-            outputs.append(d(x))
+            mid = d(x)
+            for k, v in mid.items():
+                output[k].append(v)
+
             if i < len(self.waves) - 1:
                 x = self.downsample(x)
 
-        return outputs
+        return output
