@@ -1,3 +1,5 @@
+import math
+
 from torch import nn
 from torch.nn import functional as F
 
@@ -44,12 +46,17 @@ class CausalConvTranspose1d(nn.Module):
         return x
 
 
-class ResidualUnit(nn.Module):
-    def __init__(self, N, dilation):
+class GenResidualUnit(nn.Module):
+    def __init__(self, in_channels, out_channels, mid_channels=None, dilation=1):
         super().__init__()
+        if mid_channels is None:
+            mid_channels = out_channels
+
         self.act = nn.ELU()
-        self.conv1 = CausalConv1d(N, N, kernel_size=7, dilation=dilation)
-        self.conv2 = CausalConv1d(N, N, kernel_size=1)
+        self.conv1 = CausalConv1d(
+            in_channels, mid_channels, kernel_size=7, dilation=dilation
+        )
+        self.conv2 = CausalConv1d(mid_channels, out_channels, kernel_size=1)
 
     def forward(self, x):
         y = self.conv1(self.act(x))
@@ -60,9 +67,9 @@ class ResidualUnit(nn.Module):
 class EncoderBlock(nn.Module):
     def __init__(self, N, S):
         super().__init__()
-        self.ru1 = ResidualUnit(N // 2, dilation=1)
-        self.ru2 = ResidualUnit(N // 2, dilation=3)
-        self.ru3 = ResidualUnit(N // 2, dilation=9)
+        self.ru1 = GenResidualUnit(N // 2, N // 2, dilation=1)
+        self.ru2 = GenResidualUnit(N // 2, N // 2, dilation=3)
+        self.ru3 = GenResidualUnit(N // 2, N // 2, dilation=9)
         self.act = nn.ELU()
         self.conv = CausalConv1d(N // 2, N, kernel_size=2 * S, stride=S)
 
@@ -79,9 +86,9 @@ class DecoderBlock(nn.Module):
         super().__init__()
         self.act = nn.ELU()
         self.tconv = CausalConvTranspose1d(2 * N, N, kernel_size=2 * S, stride=S)
-        self.ru1 = ResidualUnit(N, dilation=1)
-        self.ru2 = ResidualUnit(N, dilation=3)
-        self.ru3 = ResidualUnit(N, dilation=9)
+        self.ru1 = GenResidualUnit(N, N, dilation=1)
+        self.ru2 = GenResidualUnit(N, N, dilation=3)
+        self.ru3 = GenResidualUnit(N, N, dilation=9)
 
     def forward(self, x):
         x = self.tconv(self.act(x))
@@ -89,3 +96,82 @@ class DecoderBlock(nn.Module):
         x = self.ru2(x)
         x = self.ru3(x)
         return x
+
+
+def same_pad_1d_size(length, kernel_size, stride):
+    out_len = math.ceil(length / stride)
+
+    pad_total = max(
+        0,
+        (out_len - 1) * stride + kernel_size - length,
+    )
+    pad_left = pad_total // 2
+    pad_right = pad_total - pad_left
+    return pad_left, pad_right
+
+
+class SamePadConv2d(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=(1, 1)):
+        super().__init__()
+
+        self.kernel_size = kernel_size
+        self.stride = stride
+
+        self.conv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=0,
+        )
+
+    def forward(self, x):
+        # (B, C, M, N)
+        _, _, M, N = x.shape
+
+        pad_M_l, pad_M_r = same_pad_1d_size(
+            M,
+            self.kernel_size[0],
+            self.stride[0],
+        )
+        pad_N_l, pad_N_r = same_pad_1d_size(
+            N,
+            self.kernel_size[1],
+            self.stride[1],
+        )
+
+        x = F.pad(x, (pad_N_l, pad_N_r, pad_M_l, pad_M_r))
+        return self.conv(x)
+
+
+class DiscrResidualUnit(nn.Module):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        mid_channels=None,
+        kernel_size=None,
+        stride=(1, 1),
+    ):
+        super().__init__()
+
+        if kernel_size is None:
+            kernel_size = tuple(s + 2 for s in stride)
+
+        if mid_channels is None:
+            mid_channels = in_channels
+
+        self.act = nn.LeakyReLU(0.2, inplace=True)
+        self.conv1 = SamePadConv2d(in_channels, mid_channels, kernel_size=(3, 3))
+        self.conv2 = SamePadConv2d(
+            mid_channels, out_channels, kernel_size=kernel_size, stride=stride
+        )
+        self.skip = SamePadConv2d(
+            in_channels, out_channels, kernel_size=(1, 1), stride=stride
+        )
+
+    def forward(self, x):
+        y = self.conv1(self.act(x))
+        y = self.conv2(self.act(y))
+        x = self.skip(x)
+        return x + y
