@@ -72,6 +72,32 @@ class FeatureLoss(nn.Module):
         return {"feat_loss": loss}
 
 
+class GeneratorLoss(nn.Module):
+    def __init__(self, l_adv=1, l_feat=100, l_rec=1, rec_n_mels=64):
+        super().__init__()
+        self.rec_loss = ReconstructionLoss(n_mels=rec_n_mels)
+        self.feat_loss = FeatureLoss()
+        self.adv_loss = AdversarialLoss()
+
+        self.l_adv = l_adv
+        self.l_feat = l_feat
+        self.l_rec = l_rec
+
+    def forward(self, **batch):
+        out = {}
+        out.update(self.rec_loss(**batch))
+        out.update(self.feat_loss(**batch))
+        out.update(self.adv_loss(**batch))
+
+        loss = (
+            self.l_adv * out["adv_loss"]
+            + self.l_feat * out["feat_loss"]
+            + self.l_rec * out["rec_loss"]
+        )
+        out["loss"] = loss
+        return out
+
+
 class DiscriminatorLoss(nn.Module):
     def __init__(self):
         super().__init__()

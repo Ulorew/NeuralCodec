@@ -14,12 +14,16 @@ lr_scheduler:
   gamma: 0.9
   step_size: ${trainer.epoch_len}
 loss_function:
-  _target_: src.loss.ExampleLoss
+  _target_: src.loss.GeneratorLoss
+  l_adv: 1
+  l_feat: 100
+  l_rec: 1
+  rec_n_mels: 64
 trainer:
   log_step: 50
   n_epochs: 100
   epoch_len: 500
-  device_tensors: ["data_object", "labels"] # which tensors should be on device (ex. GPU)
+  device_tensors: [ "data_object", "labels" ] # which tensors should be on device (ex. GPU)
   resume_from: null # null or path to the checkpoint dir with *.pth and config.yaml
   device: auto # device name or "auto"
   override: False # if True, will override the previous run with the same name
