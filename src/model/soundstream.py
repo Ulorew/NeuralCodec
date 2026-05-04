@@ -64,7 +64,8 @@ class SoundStreamGenerator(nn.Module):
     def forward(self, x):
         y = self.enc(x)
         z = self.dec(y)
-        return z
+
+        return {"lat_raw": y, "recon": z}
 
 
 class WaveDiscriminator(nn.Module):
@@ -268,3 +269,15 @@ class SoundStreamDiscriminator(nn.Module):
                 x = self.downsample(x)
 
         return output
+
+
+class SoundStreamGAN(nn.Module):
+    def __init__(
+        self, gen_base_channels, gen_lat_dim, discr_stft_channels, discr_wave_width
+    ):
+        super().__init__()
+        self.gen = SoundStreamGenerator(gen_base_channels, gen_lat_dim)
+        self.discr = SoundStreamDiscriminator(discr_stft_channels, discr_wave_width)
+
+    def forward(self, orig, **batch):
+        return self.gen(orig)

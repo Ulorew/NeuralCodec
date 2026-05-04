@@ -1,5 +1,5 @@
-from src.model.baseline_model import BaselineModel
+from src.model.soundstream import SoundStreamGAN
 
 __all__ = [
-    "BaselineModel",
+    "SoundStreamGAN",
 ]
