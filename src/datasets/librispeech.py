@@ -79,7 +79,7 @@ class LibriSpeechDataset(BaseDataset):
 
     def load_object(self, info):
         if self.fixed_cuts:
-            start = info["duration"] - (self.segment_len // 2)
+            start = (info["duration"] - self.segment_len) // 2
         else:
             start = torch.randint(0, info["max_offset"] + 1, ()).item()
 

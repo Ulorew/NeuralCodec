@@ -17,6 +17,6 @@ class Normalize1D(nn.Module):
         Returns:
             x (Tensor): normalized tensor.
         """
-        peak_amp = x.abs().max()
+        peak_amp = x.abs().max(dim=-1)[0].unsqueeze(-1)
         x /= peak_amp
         return x

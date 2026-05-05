@@ -1,6 +1,6 @@
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
-from utils.misc import freeze_model
+from src.utils.misc import freeze_model
 
 
 class GANTrainer(BaseTrainer):
