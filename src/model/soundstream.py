@@ -9,7 +9,7 @@ from src.model.convolution_blocks import (
     EncoderBlock,
     SamePadConv2d,
 )
-from src.utils.misc import add_key_suffix
+from src.utils.misc import wrap_keys
 
 
 class Encoder(nn.Module):
@@ -285,7 +285,8 @@ class SoundStreamGAN(nn.Module):
     def forward(self, orig, **batch):
         return self.gen(orig)
 
-    def discriminate(self, x, key_suf=""):
+    def discriminate(self, x, key_pref="", key_suff=""):
         out = self.discr(x)
-        add_key_suffix(out, ["logits", "features"], key_suf)
+
+        wrap_keys(out, ["logits", "features"], pref=key_pref, suff=key_suff)
         return out

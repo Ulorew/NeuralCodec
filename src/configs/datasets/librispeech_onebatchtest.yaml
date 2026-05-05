@@ -2,13 +2,13 @@ train:
   _target_: src.datasets.LibriSpeechDataset
   sampling_rate: 16000
   window_size: 0.5
-  limit: 4
+  limit: 64
   fixed_cuts: True
-  name: "test-clean"
+  name: "train-clean-100"
 val:
   _target_: src.datasets.LibriSpeechDataset
   sampling_rate: 16000
   window_size: 0.5
   fixed_cuts: True
-  limit: 4
+  limit: 64
   name: "test-clean"

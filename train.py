@@ -42,13 +42,26 @@ def main(config):
     logger.info(model)
 
     # get function handles of loss and metrics
-    loss_function = instantiate(config.loss_function).to(device)
+    loss_function = {
+        k: instantiate(v).to(device) for k, v in config.loss_function.items()
+    }
     metrics = instantiate(config.metrics)
 
     # build optimizer, learning rate scheduler
-    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-    optimizer = instantiate(config.optimizer, params=trainable_params)
-    lr_scheduler = instantiate(config.lr_scheduler, optimizer=optimizer)
+    trainable_params = {
+        "gen": filter(lambda p: p.requires_grad, model.gen.parameters()),
+        "discr": filter(lambda p: p.requires_grad, model.discr.parameters()),
+    }
+
+    optimizer = {
+        k: instantiate(v, params=trainable_params[k])
+        for k, v in config.optimizer.items()
+    }
+
+    lr_scheduler = {
+        k: instantiate(v, optimizer=optimizer[k])
+        for k, v in config.lr_scheduler.items()
+    }
 
     # epoch_len = number of iterations for iteration-based training
     # epoch_len = None or len(dataloader) for epoch-based training

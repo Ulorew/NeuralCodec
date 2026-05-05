@@ -2,9 +2,9 @@ def rename_key(d, old, new):
     d[new] = d.pop(old)
 
 
-def add_key_suffix(d, keys, suff):
+def wrap_keys(d, keys, pref="", suff=""):
     for k in keys:
-        rename_key(d, k, k + suff)
+        rename_key(d, k, pref + k + suff)
 
 
 def freeze_model(model, freeze=True):

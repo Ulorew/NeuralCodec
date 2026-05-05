@@ -1,3 +1,5 @@
+import torch
+
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
 from src.utils.misc import freeze_model
@@ -33,26 +35,66 @@ class GANTrainer(BaseTrainer):
         metric_funcs = self.metrics["inference"]
         if self.is_train:
             metric_funcs = self.metrics["train"]
-            self.optimizer.zero_grad()
 
-        freeze_model(self.model.discr)
-        outputs = self.model(**batch)
-        outputs.update(self.model.discriminate(batch["orig"], "_orig"))
-        outputs.update(self.model.discriminate(outputs["recon"], "_recon"))
+        # DISCR
+
+        freeze_model(self.model.gen, True)
+        freeze_model(self.model.discr, False)
+
+        with torch.no_grad():
+            outputs = self.model(**batch)
+
+        if self.is_train:
+            self.optimizer["discr"].zero_grad()
+
+        outputs.update(
+            self.model.discriminate(batch["orig"].detach(), key_suff="_orig")
+        )
+        outputs.update(
+            self.model.discriminate(outputs["recon"].detach(), key_suff="_recon")
+        )
 
         batch.update(outputs)
 
-        all_losses = self.criterion(**batch)
-        batch.update(all_losses)
+        discr_losses = self.criterion["discr"](**batch)
+        batch.update(discr_losses)
 
         if self.is_train:
-            batch["loss"].backward()  # sum of all losses is always called loss
-            self._clip_grad_norm()
-            self.optimizer.step()
-            if self.lr_scheduler is not None:
-                self.lr_scheduler.step()
+            batch["discr_loss"].backward()
+            self._clip_grad_norm(self.model.discr)
+            self.optimizer["discr"].step()
+            if self.lr_scheduler is not None and "discr" in self.lr_scheduler.keys():
+                self.lr_scheduler["discr"].step()
+
+        # GEN
+
+        freeze_model(self.model.gen, False)
+        freeze_model(self.model.discr, True)
+
+        if self.is_train:
+            self.optimizer["gen"].zero_grad()
+
+        outputs.update(self.model(**batch))
+        outputs.update(
+            self.model.discriminate(batch["orig"].detach(), key_suff="_orig")
+        )
+        outputs.update(self.model.discriminate(outputs["recon"], key_suff="_recon"))
+
+        batch.update(outputs)
+
+        gen_losses = self.criterion["gen"](**batch)
+        batch.update(gen_losses)
+
+        if self.is_train:
+            batch["gen_loss"].backward()
+            self._clip_grad_norm(self.model.gen)
+            self.optimizer["gen"].step()
+            if self.lr_scheduler is not None and "gen" in self.lr_scheduler.keys():
+                self.lr_scheduler["gen"].step()
 
         # update metrics for each loss (in case of multiple losses)
+        batch["loss"] = batch["gen_loss"] + batch["discr_loss"]
+
         for loss_name in self.config.writer.loss_names:
             metrics.update(loss_name, batch[loss_name].item())
 

@@ -22,7 +22,8 @@ class AdversarialLoss(nn.Module):
 class ReconstructionLoss(nn.Module):
     def __init__(self, n_mels=64):
         super().__init__()
-        self.ss = [64, 128, 256, 512, 1024, 2048]
+        self.ss = [256, 512, 1024, 2048]  # TODO [64, 128] too small for n_mels=64
+
         self.transforms = nn.ModuleList(
             [
                 torchaudio.transforms.MelSpectrogram(
@@ -108,7 +109,7 @@ class GeneratorLoss(nn.Module):
             + self.l_feat * out["feat_loss"]
             + self.l_rec * out["rec_loss"]
         )
-        out["loss"] = loss
+        out["gen_loss"] = loss
         return out
 
 
@@ -124,5 +125,7 @@ class DiscriminatorLoss(nn.Module):
             torch.max(torch.zeros_like(outs), 1 + outs).mean() for outs in logits_recon
         ]
 
-        tot = torch.stack(mean_orig).mean() + torch.stack(mean_fake).mean()
-        return {"discr_loss": tot}
+        orig = torch.stack(mean_orig).mean()
+        fake = torch.stack(mean_fake).mean()
+        tot = orig + fake
+        return {"discr_loss": tot, "discr_orig_loss": orig, "discr_fake_loss": fake}

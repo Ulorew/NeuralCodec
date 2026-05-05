@@ -34,12 +34,12 @@ class BaseTrainer:
         """
         Args:
             model (nn.Module): PyTorch model.
-            criterion (nn.Module): loss function for model training.
+            criterion (dict[nn.Module]): loss function for all models.
             metrics (dict): dict with the definition of metrics for training
                 (metrics[train]) and inference (metrics[inference]). Each
                 metric is an instance of src.metrics.BaseMetric.
-            optimizer (Optimizer): optimizer for the model.
-            lr_scheduler (LRScheduler): learning rate scheduler for the
+            optimizer (Dict[Optimizer]): optimizers for all models.
+            lr_scheduler (Dict[LRScheduler]): learning rate scheduler for all optimizers.
                 optimizer.
             config (DictConfig): experiment config containing training config.
             device (str): device for tensors and model.
@@ -119,10 +119,10 @@ class BaseTrainer:
         self.metrics = metrics
         self.train_metrics = MetricTracker(
             *self.config.writer.loss_names,
-            "grad_norm",
+            *(f"grad_norm_{key}" for key in self.optimizer.keys()),
             *[m.name for m in self.metrics["train"]],
             writer=self.writer,
-        )
+        )  # TODO dehardcode
         self.evaluation_metrics = MetricTracker(
             *self.config.writer.loss_names,
             *[m.name for m in self.metrics["inference"]],
@@ -218,7 +218,11 @@ class BaseTrainer:
                 else:
                     raise e
 
-            self.train_metrics.update("grad_norm", self._get_grad_norm())
+            for key in self.optimizer.keys():  # TODO dehardcode
+                model = getattr(self.model, key)
+                self.train_metrics.update(
+                    f"grad_norm_{key}", self._get_grad_norm(model)
+                )
 
             # log current results
             if batch_idx % self.log_step == 0:
@@ -228,9 +232,11 @@ class BaseTrainer:
                         epoch, self._progress(batch_idx), batch["loss"].item()
                     )
                 )
-                self.writer.add_scalar(
-                    "learning rate", self.lr_scheduler.get_last_lr()[0]
-                )
+                for key, sched in self.lr_scheduler.items():
+                    self.writer.add_scalar(
+                        f"{key} learning rate", sched.get_last_lr()[0]
+                    )
+
                 self._log_scalars(self.train_metrics)
                 self._log_batch(batch_idx, batch)
                 # we don't want to reset train metrics at the start of every epoch
@@ -373,18 +379,18 @@ class BaseTrainer:
                 )
         return batch
 
-    def _clip_grad_norm(self):
+    def _clip_grad_norm(self, model=None):
         """
         Clips the gradient norm by the value defined in
         config.trainer.max_grad_norm
         """
+        if model is None:
+            model = self.model
         if self.config["trainer"].get("max_grad_norm", None) is not None:
-            clip_grad_norm_(
-                self.model.parameters(), self.config["trainer"]["max_grad_norm"]
-            )
+            clip_grad_norm_(model.parameters(), self.config["trainer"]["max_grad_norm"])
 
     @torch.no_grad()
-    def _get_grad_norm(self, norm_type=2):
+    def _get_grad_norm(self, model=None, norm_type=2):
         """
         Calculates the gradient norm for logging.
 
@@ -393,7 +399,9 @@ class BaseTrainer:
         Returns:
             total_norm (float): the calculated norm.
         """
-        parameters = self.model.parameters()
+        if model is None:
+            model = self.model
+        parameters = model.parameters()
         if isinstance(parameters, torch.Tensor):
             parameters = [parameters]
         parameters = [p for p in parameters if p.grad is not None]
@@ -467,8 +475,12 @@ class BaseTrainer:
             "arch": arch,
             "epoch": epoch,
             "state_dict": self.model.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
-            "lr_scheduler": self.lr_scheduler.state_dict(),
+            "optimizer": {
+                key: optim.state_dict() for key, optim in self.optimizer.items()
+            },
+            "lr_scheduler": {
+                key: sched.state_dict() for key, sched in self.lr_scheduler.items()
+            },
             "monitor_best": self.mnt_best,
             "config": self.config,
         }
@@ -499,7 +511,9 @@ class BaseTrainer:
         """
         resume_path = str(resume_path)
         self.logger.info(f"Loading checkpoint: {resume_path} ...")
-        checkpoint = torch.load(resume_path, self.device)
+        checkpoint = torch.load(
+            resume_path, map_location=self.device, weights_only=False
+        )  # TODO fix weights_only
         self.start_epoch = checkpoint["epoch"] + 1
         self.mnt_best = checkpoint["monitor_best"]
 
@@ -512,18 +526,21 @@ class BaseTrainer:
         self.model.load_state_dict(checkpoint["state_dict"])
 
         # load optimizer state from checkpoint only when optimizer type is not changed.
-        if (
-            checkpoint["config"]["optimizer"] != self.config["optimizer"]
-            or checkpoint["config"]["lr_scheduler"] != self.config["lr_scheduler"]
-        ):
-            self.logger.warning(
-                "Warning: Optimizer or lr_scheduler given in the config file is different "
-                "from that of the checkpoint. Optimizer and scheduler parameters "
-                "are not resumed."
-            )
-        else:
-            self.optimizer.load_state_dict(checkpoint["optimizer"])
-            self.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
+
+        for key in checkpoint["optimizer"].keys():
+            if (
+                checkpoint["config"]["optimizer"][key] != self.config["optimizer"][key]
+                or checkpoint["config"]["lr_scheduler"][key]
+                != self.config["lr_scheduler"][key]
+            ):
+                self.logger.warning(
+                    "Warning: Optimizer or lr_scheduler given in the config file is different "
+                    "from that of the checkpoint. Optimizer and scheduler parameters "
+                    "are not resumed."
+                )
+            else:
+                self.optimizer[key].load_state_dict(checkpoint["optimizer"][key])
+                self.lr_scheduler[key].load_state_dict(checkpoint["lr_scheduler"][key])
 
         self.logger.info(
             f"Checkpoint loaded. Resume training from epoch {self.start_epoch}"

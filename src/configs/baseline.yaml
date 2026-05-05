@@ -7,18 +7,32 @@ defaults:
   - transforms: baseline
   - _self_
 optimizer:
-  _target_: torch.optim.AdamW
-  lr: 3e-4
+  gen:
+    _target_: torch.optim.AdamW
+    lr: 3e-4
+  discr:
+    _target_: torch.optim.AdamW
+    lr: 3e-4
+
 lr_scheduler:
-  _target_: torch.optim.lr_scheduler.StepLR
-  gamma: 0.95
-  step_size: ${trainer.epoch_len}
+  gen:
+    _target_: torch.optim.lr_scheduler.StepLR
+    gamma: 0.95
+    step_size: ${trainer.epoch_len}
+  discr:
+    _target_: torch.optim.lr_scheduler.StepLR
+    gamma: 0.95
+    step_size: ${trainer.epoch_len}
+
 loss_function:
-  _target_: src.loss.GeneratorLoss
-  l_adv: 0 #1
-  l_feat: 0 #100
-  l_rec: 1
-  rec_n_mels: 64
+  gen:
+    _target_: src.loss.GeneratorLoss
+    l_adv: 0.1
+    l_feat: 10
+    l_rec: 1
+    rec_n_mels: 64
+  discr:
+    _target_: src.loss.DiscriminatorLoss
 trainer:
   log_step: 25
   n_epochs: 100
