@@ -1,0 +1,31 @@
+train:
+  _target_: src.datasets.LibriSpeechDataset
+  sampling_rate: 16000
+  window_size: 0.5
+  name: "train-clean-100"
+val:
+  _target_: src.datasets.LibriSpeechDataset
+  sampling_rate: 16000
+  window_size: 0.5
+  #  limit: 10
+  name: "test-clean"
+test:
+  _target_: src.datasets.LibriSpeechDataset
+  sampling_rate: 16000
+  window_size: 0.5
+  name: "test-clean"
+
+
+#
+#train:
+#  _target_: src.datasets.LibriSpeechDataset
+#  sampling_rate: 16000
+#  window_size: 0.5
+#  limit: 10
+#  name: "test-clean-100"
+#val:
+#  _target_: src.datasets.LibriSpeechDataset
+#  sampling_rate: 16000
+#  window_size: 0.5
+#  limit: 10
+#  name: "test-clean-100"

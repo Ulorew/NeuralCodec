@@ -6,7 +6,7 @@ from hydra.utils import instantiate
 from omegaconf import OmegaConf
 
 from src.datasets.data_utils import get_dataloaders
-from src.trainer import Trainer
+from src.trainer import GANTrainer
 from src.utils.init_utils import set_random_seed, setup_saving_and_logging
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -54,7 +54,7 @@ def main(config):
     # epoch_len = None or len(dataloader) for epoch-based training
     epoch_len = config.trainer.get("epoch_len")
 
-    trainer = Trainer(
+    trainer = GANTrainer(
         model=model,
         criterion=loss_function,
         metrics=metrics,

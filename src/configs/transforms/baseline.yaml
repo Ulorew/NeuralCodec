@@ -1,5 +1,5 @@
 defaults:
-  - batch_transforms: example
+  - batch_transforms: normalize
   - _self_
 
 # these lines are required if you do not use instance transforms

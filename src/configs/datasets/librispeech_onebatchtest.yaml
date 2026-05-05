@@ -1,0 +1,14 @@
+train:
+  _target_: src.datasets.LibriSpeechDataset
+  sampling_rate: 16000
+  window_size: 0.5
+  limit: 2
+  fixed_cuts: True
+  name: "test-clean"
+val:
+  _target_: src.datasets.LibriSpeechDataset
+  sampling_rate: 16000
+  window_size: 0.5
+  fixed_cuts: True
+  limit: 2
+  name: "test-clean"

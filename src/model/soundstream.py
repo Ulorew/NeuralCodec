@@ -7,7 +7,9 @@ from src.model.convolution_blocks import (
     DecoderBlock,
     DiscrResidualUnit,
     EncoderBlock,
+    SamePadConv2d,
 )
+from src.utils.misc import add_key_suffix
 
 
 class Encoder(nn.Module):
@@ -184,8 +186,9 @@ class STFTDiscriminator(nn.Module):
 
         self.layers = nn.ModuleList(
             [
+                SamePadConv2d(2, C, kernel_size=(7, 7)),
                 DiscrResidualUnit(
-                    in_channels=2, mid_channels=C, out_channels=2 * C, stride=(1, 2)
+                    in_channels=C, mid_channels=C, out_channels=2 * C, stride=(1, 2)
                 ),
                 DiscrResidualUnit(
                     in_channels=2 * C,
@@ -281,3 +284,8 @@ class SoundStreamGAN(nn.Module):
 
     def forward(self, orig, **batch):
         return self.gen(orig)
+
+    def discriminate(self, x, key_suf=""):
+        out = self.discr(x)
+        add_key_suffix(out, ["logits", "features"], key_suf)
+        return out

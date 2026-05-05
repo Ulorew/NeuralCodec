@@ -1,5 +1,6 @@
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
+from utils.misc import freeze_model
 
 
 class GANTrainer(BaseTrainer):
@@ -34,7 +35,11 @@ class GANTrainer(BaseTrainer):
             metric_funcs = self.metrics["train"]
             self.optimizer.zero_grad()
 
+        freeze_model(self.model.discr)
         outputs = self.model(**batch)
+        outputs.update(self.model.discriminate(batch["orig"], "_orig"))
+        outputs.update(self.model.discriminate(outputs["recon"], "_recon"))
+
         batch.update(outputs)
 
         all_losses = self.criterion(**batch)

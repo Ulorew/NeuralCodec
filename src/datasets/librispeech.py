@@ -1,28 +1,26 @@
 import math
 
-import numpy as np
 import torch
 import torchaudio
 from torchcodec.decoders import AudioDecoder
-from tqdm.auto import tqdm
 
 from src.datasets.base_dataset import BaseDataset
 from src.utils.io_utils import ROOT_PATH, read_json, write_json
 
 
-class ExampleDataset(BaseDataset):
-    """
-    Example of a nested dataset class to show basic structure.
-
-    Uses random vectors as objects and random integers between
-    0 and n_classes-1 as labels.
-    """
-
+class LibriSpeechDataset(BaseDataset):
     def __init__(
-        self, sampling_rate, window_size, name="train-clean-100", *args, **kwargs
+        self,
+        sampling_rate,
+        window_size,
+        name="train-clean-100",
+        fixed_cuts=False,
+        *args,
+        **kwargs,
     ):
         self.sampling_rate = sampling_rate
         self.segment_len = math.floor(window_size * sampling_rate)
+        self.fixed_cuts = fixed_cuts
 
         index_path = ROOT_PATH / "data" / "LibriSpeech" / name / "index.json"
 
@@ -40,46 +38,53 @@ class ExampleDataset(BaseDataset):
             raise ValueError(f"Can't find the dataset at {data_path}")
 
         for fp in data_path.rglob("*.flac"):
+            dec = AudioDecoder(fp)
+
+            md = dec.metadata
+
+            sr = md.sample_rate
+            duration_s = md.duration_seconds
+            duration_d = math.floor(duration_s * sr)
+
+            if sr != self.sampling_rate:
+                raise ValueError(
+                    f"Inconsistent sampling rate: expected {self.sampling_rate}, found {sr}"
+                )
+
+            info = {}
+
+            max_offset = int(duration_d - self.segment_len)
+
+            if max_offset < 0:
+                raise ValueError(
+                    "Too short audio found. Unsupported."
+                )  # TODO: add short audio support
+
             label = fp.name.rstrip(".flac")
-            index.append({"path": str(fp), "label": label})
+            info.update(
+                {
+                    "path": str(fp),
+                    "label": label,
+                    "duration": duration_d,
+                    "max_offset": max_offset,
+                }
+            )
+
+            index.append(info)
 
         # write index to disk
         write_json(index, str(data_path / "index.json"))
 
         return index
 
-    def load_object(self, path):
-        """
-        Load audio from disk.
-
-        Args:
-            path (str): path to the object.
-        Returns:
-            data_object (Tensor):
-        """
-
-        dec = AudioDecoder(path)
-        md = dec.metadata
-
-        sr = md.sample_rate
-        duration_s = md.duration_seconds
-
-        if sr != self.sampling_rate:
-            raise ValueError(
-                f"Inconsistent sampling rate: expected {self.sampling_rate}, found {sr}"
-            )
-
-        max_offset = int(math.floor(duration_s * sr) - self.segment_len)
-
-        if max_offset < 0:
-            raise ValueError(
-                "Too short audio found. Unsupported."
-            )  # TODO: add short audio support
-
-        start = torch.randint(0, max_offset + 1, ()).item()
+    def load_object(self, info):
+        if self.fixed_cuts:
+            start = info["duration"] - (self.segment_len // 2)
+        else:
+            start = torch.randint(0, info["max_offset"] + 1, ()).item()
 
         audio, _ = torchaudio.load(
-            path, frame_offset=start, num_frames=self.segment_len
+            info["path"], frame_offset=start, num_frames=self.segment_len
         )
         return audio
 
@@ -99,8 +104,7 @@ class ExampleDataset(BaseDataset):
                 (a single dataset element).
         """
         data_dict = self._index[ind]
-        data_path = data_dict["path"]
-        data_object = self.load_object(data_path)
+        data_object = self.load_object(data_dict)
         data_label = data_dict["label"]
 
         instance_data = {"orig": data_object, "label": data_label}

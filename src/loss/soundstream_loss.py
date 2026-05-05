@@ -35,25 +35,26 @@ class ReconstructionLoss(nn.Module):
     def forward(self, orig, recon, eps=1e-8, **batch):
         loss = 0
         for s, tf in zip(self.ss, self.transforms):
-            mel_orig = tf(orig)
-            mel_recon = tf(recon)
-
-            alpha = math.sqrt(s / 2)
-
-            loss += F.l1_loss(mel_orig, mel_recon)
-
-            # loss_rec += alpha * F.mse_loss(
-            #     torch.log(mel_recon + eps), torch.log(mel_orig + eps)
+            loss += F.l1_loss(orig, recon)
+            break
+            # mel_orig = tf(orig)
+            # mel_recon = tf(recon)
+            # alpha = math.sqrt(s / 2)
+            #
+            # loss += F.l1_loss(mel_orig, mel_recon)
+            #
+            # # loss_rec += alpha * F.mse_loss(
+            # #     torch.log(mel_recon + eps), torch.log(mel_orig + eps)
+            # # )
+            #
+            # loss += (
+            #     alpha
+            #     * torch.linalg.norm(
+            #         torch.log(mel_recon + eps) - torch.log(mel_orig + eps),
+            #         dim=-2,
+            #         ord=2,
+            #     ).mean()
             # )
-
-            loss += (
-                alpha
-                * torch.linalg.norm(
-                    torch.log(mel_recon + eps) - torch.log(mel_orig + eps),
-                    dim=-2,
-                    ord=2,
-                ).mean()
-            )
             # TODO: return to simpler loss?
         return {"rec_loss": loss}
 
