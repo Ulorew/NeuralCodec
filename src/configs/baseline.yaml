@@ -17,7 +17,7 @@ optimizer:
 lr_scheduler:
   gen:
     _target_: torch.optim.lr_scheduler.StepLR
-    gamma: 0.95
+    gamma: 0.97
     step_size: ${trainer.epoch_len}
   discr:
     _target_: torch.optim.lr_scheduler.StepLR
@@ -34,8 +34,8 @@ loss_function:
   discr:
     _target_: src.loss.DiscriminatorLoss
 trainer:
-  log_step: 25
-  n_epochs: 100
+  log_step: 50
+  n_epochs: 50
   epoch_len: 100
   max_grad_norm: 100
   device_tensors: [ "orig" ] # which tensors should be on device (ex. GPU)

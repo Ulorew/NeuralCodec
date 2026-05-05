@@ -200,8 +200,8 @@ class BaseTrainer:
         self.is_train = True
         self.model.train()
         self.train_metrics.reset()
-        self.writer.set_step((epoch - 1) * self.epoch_len)
-        self.writer.add_scalar("epoch", epoch)
+        self._set_epoch(epoch)
+
         for batch_idx, batch in enumerate(
             tqdm(self.train_dataloader, desc="train", total=self.epoch_len)
         ):
@@ -254,6 +254,10 @@ class BaseTrainer:
             logs.update(**{f"{part}_{name}": value for name, value in val_logs.items()})
 
         return logs
+
+    def _set_epoch(self, epoch):
+        self.writer.set_step((epoch - 1) * self.epoch_len)
+        self.writer.add_scalar("epoch", epoch)
 
     def _evaluation_epoch(self, epoch, part, dataloader):
         """

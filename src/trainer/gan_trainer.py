@@ -75,9 +75,11 @@ class GANTrainer(BaseTrainer):
             self.optimizer["gen"].zero_grad()
 
         outputs.update(self.model(**batch))
-        outputs.update(
-            self.model.discriminate(batch["orig"].detach(), key_suff="_orig")
-        )
+
+        with torch.no_grad():
+            outputs.update(
+                self.model.discriminate(batch["orig"].detach(), key_suff="_orig")
+            )
         outputs.update(self.model.discriminate(outputs["recon"], key_suff="_recon"))
 
         batch.update(outputs)
@@ -124,3 +126,9 @@ class GANTrainer(BaseTrainer):
         else:
             # Log Stuff
             pass
+
+    def _set_epoch(self, epoch):
+        self.writer.set_step((epoch - 1) * self.epoch_len)
+        self.writer.add_scalar("epoch", epoch)
+
+        self.criterion["gen"].update_progress(epoch / self.epochs)

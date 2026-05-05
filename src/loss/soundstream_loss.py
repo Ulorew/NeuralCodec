@@ -97,6 +97,12 @@ class GeneratorLoss(nn.Module):
         self.l_adv = l_adv
         self.l_feat = l_feat
         self.l_rec = l_rec
+        self.progress = 0
+        self.alpha = 0.0
+
+    def update_progress(self, prog: float):
+        self.progress = prog
+        self.alpha = min(1.0, prog * 2)
 
     def forward(self, **batch):
         out = {}
@@ -105,11 +111,12 @@ class GeneratorLoss(nn.Module):
         out.update(self.adv_loss(**batch))
 
         loss = (
-            self.l_adv * out["adv_loss"]
-            + self.l_feat * out["feat_loss"]
+            self.l_adv * self.alpha * out["adv_loss"]
+            + self.l_feat * self.alpha * out["feat_loss"]
             + self.l_rec * out["rec_loss"]
         )
         out["gen_loss"] = loss
+        out["gan_alpha"] = torch.tensor(self.alpha, device=out["rec_loss"].device)
         return out
 
 
