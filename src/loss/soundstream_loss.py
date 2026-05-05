@@ -26,43 +26,50 @@ class ReconstructionLoss(nn.Module):
         self.transforms = nn.ModuleList(
             [
                 torchaudio.transforms.MelSpectrogram(
-                    n_mels=n_mels, n_fft=s, win_length=s, hop_length=s // 4
+                    n_mels=n_mels, n_fft=s, win_length=s, hop_length=s // 4, power=1
                 )
                 for s in self.ss
             ]
         )
 
     def forward(self, orig, recon, eps=1e-8, **batch):
-        loss = 0
-        loss += F.l1_loss(orig, recon) * 100
-
-        tf = self.transforms[3]
-        mel_orig = tf(orig)
-        mel_recon = tf(recon)
-
-        loss += F.l1_loss(mel_orig, mel_recon)
-
-        # for s, tf in zip(self.ss, self.transforms):
-        #     mel_orig = tf(orig)
-        #     mel_recon = tf(recon)
-        #     alpha = math.sqrt(s / 2)
+        # loss = 0
+        # loss += F.l1_loss(orig, recon) * 100
         #
-        #     loss += F.l1_loss(mel_orig, mel_recon)
+        # tf = self.transforms[3]
+        # mel_orig = tf(orig)
+        # mel_recon = tf(recon)
         #
-        #     # loss_rec += alpha * F.mse_loss(
-        #     #     torch.log(mel_recon + eps), torch.log(mel_orig + eps)
-        #     # )
-        #
-        #     loss += (
-        #         alpha
-        #         * torch.linalg.norm(
-        #             torch.log(mel_recon + eps) - torch.log(mel_orig + eps),
-        #             dim=-2,
-        #             ord=2,
-        #         ).mean()
-        #     )
+        # loss += F.l1_loss(mel_orig, mel_recon)
+
+        out = {}
+
+        for s, tf in zip(self.ss, self.transforms):
+            mel_orig = tf(orig)
+            mel_recon = tf(recon)
+
+            mel_loss = F.l1_loss(mel_orig, mel_recon)
+            out[f"rec_loss_mel_{s}"] = mel_loss
+
+            # loss += alpha * F.mse_loss(
+            #     torch.log(mel_recon + eps), torch.log(mel_orig + eps)
+            # )
+
+            # alpha = math.sqrt(s / 2)
+            # loss += (
+            #     alpha
+            #     * torch.linalg.norm(
+            #         torch.log(mel_recon + eps) - torch.log(mel_orig + eps),
+            #         dim=-2,
+            #         ord=2,
+            #     ).mean()
+            # )
         # TODO: return to simpler loss?
-        return {"rec_loss": loss}
+
+        loss = torch.stack(list(out.values())).mean()
+        out["rec_loss"] = loss
+
+        return out
 
 
 class FeatureLoss(nn.Module):
