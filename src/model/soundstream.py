@@ -9,6 +9,7 @@ from src.model.convolution_blocks import (
     EncoderBlock,
     SamePadConv2d,
 )
+from src.model.rvq import RVQ
 from src.utils.misc import wrap_keys
 
 
@@ -57,17 +58,21 @@ class Decoder(nn.Module):
 
 
 class SoundStreamGenerator(nn.Module):
-    def __init__(self, base_channels, lat_dim):
+    def __init__(self, base_channels, cb_cnt, cb_size, code_dim, rvq_eta):
         super().__init__()
 
-        self.enc = Encoder(base_channels, lat_dim)
-        self.dec = Decoder(base_channels, lat_dim)
+        self.enc = Encoder(base_channels, code_dim)
+        self.dec = Decoder(base_channels, code_dim)
+        self.rvq = RVQ(cb_cnt, cb_size, code_dim, rvq_eta)
 
-    def forward(self, x):
-        y = self.enc(x)
-        z = self.dec(y)
+    def forward(self, orig, update_codebook=False, **batch):
+        lat_raw = self.enc(orig)
+        out = self.rvq(lat_raw, update_codebook=update_codebook)
+        recon = self.dec(out["lat_quant"])
 
-        return {"lat_raw": y, "recon": z}
+        out.update({"lat_raw": lat_raw, "recon": recon})
+        assert out["lat_raw"].shape == out["lat_quant"].shape
+        return out
 
 
 class WaveDiscriminator(nn.Module):
@@ -276,14 +281,23 @@ class SoundStreamDiscriminator(nn.Module):
 
 class SoundStreamGAN(nn.Module):
     def __init__(
-        self, gen_base_channels, gen_lat_dim, discr_stft_channels, discr_wave_width
+        self,
+        gen_base_channels,
+        discr_stft_channels,
+        discr_wave_width,
+        cb_cnt,
+        cb_size,
+        code_dim,
+        rvq_eta,
     ):
         super().__init__()
-        self.gen = SoundStreamGenerator(gen_base_channels, gen_lat_dim)
+        self.gen = SoundStreamGenerator(
+            gen_base_channels, cb_cnt, cb_size, code_dim, rvq_eta
+        )
         self.discr = SoundStreamDiscriminator(discr_stft_channels, discr_wave_width)
 
-    def forward(self, orig, **batch):
-        return self.gen(orig)
+    def forward(self, **batch):
+        return self.gen(**batch)
 
     def discriminate(self, x, key_pref="", key_suff=""):
         out = self.discr(x)

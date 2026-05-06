@@ -1,5 +1,3 @@
-import math
-
 import torch
 import torch.nn.functional as F
 import torchaudio
@@ -87,16 +85,27 @@ class FeatureLoss(nn.Module):
         return {"feat_loss": loss}
 
 
+class CommitmentLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, lat_raw, lat_quant, **batch):
+        loss = F.mse_loss(lat_raw, lat_quant.detach())
+        return {"comm_loss": loss}
+
+
 class GeneratorLoss(nn.Module):
-    def __init__(self, l_adv=1, l_feat=100, l_rec=1, rec_n_mels=64):
+    def __init__(self, l_adv=1, l_feat=100, l_rec=1, l_comm=1, rec_n_mels=64):
         super().__init__()
         self.rec_loss = ReconstructionLoss(n_mels=rec_n_mels)
         self.feat_loss = FeatureLoss()
         self.adv_loss = AdversarialLoss()
+        self.comm_loss = CommitmentLoss()
 
         self.l_adv = l_adv
         self.l_feat = l_feat
         self.l_rec = l_rec
+        self.l_comm = l_comm
         self.progress = 0
         self.alpha = 0.0
 
@@ -109,11 +118,13 @@ class GeneratorLoss(nn.Module):
         out.update(self.rec_loss(**batch))
         out.update(self.feat_loss(**batch))
         out.update(self.adv_loss(**batch))
+        out.update(self.comm_loss(**batch))
 
         loss = (
             self.l_adv * self.alpha * out["adv_loss"]
             + self.l_feat * self.alpha * out["feat_loss"]
             + self.l_rec * out["rec_loss"]
+            + self.l_comm * out["comm_loss"]
         )
         out["gen_loss"] = loss
         out["gan_alpha"] = torch.tensor(self.alpha, device=out["rec_loss"].device)

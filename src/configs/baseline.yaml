@@ -30,6 +30,7 @@ loss_function:
     l_adv: 0.1
     l_feat: 10
     l_rec: 1
+    l_comm: 1
     rec_n_mels: 64
   discr:
     _target_: src.loss.DiscriminatorLoss

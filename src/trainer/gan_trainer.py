@@ -74,7 +74,7 @@ class GANTrainer(BaseTrainer):
         if self.is_train:
             self.optimizer["gen"].zero_grad()
 
-        outputs.update(self.model(**batch))
+        outputs.update(self.model(**batch, update_codebook=True))
 
         with torch.no_grad():
             outputs.update(
