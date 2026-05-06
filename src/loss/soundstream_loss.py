@@ -111,7 +111,7 @@ class GeneratorLoss(nn.Module):
 
     def update_progress(self, prog: float):
         self.progress = prog
-        self.alpha = min(1.0, prog * 2)
+        self.alpha = min(1.0, prog / 0.7)
 
     def forward(self, **batch):
         out = {}

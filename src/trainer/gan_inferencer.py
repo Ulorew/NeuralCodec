@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 from tqdm.auto import tqdm
 
@@ -5,7 +7,7 @@ from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
 
 
-class Inferencer(BaseTrainer):
+class GANInferencer(BaseTrainer):
     """
     Inferencer (Like Trainer but for Inference) class
 
@@ -44,7 +46,7 @@ class Inferencer(BaseTrainer):
                 tensor name.
             skip_model_load (bool): if False, require the user to set
                 pre-trained checkpoint path. Set this argument to True if
-                the model desirable weights are defined outside of the
+                the model desirable weights are defined outside the
                 Inferencer Class.
         """
         assert (
@@ -64,7 +66,7 @@ class Inferencer(BaseTrainer):
 
         # path definition
 
-        self.save_path = save_path
+        self.save_path = Path(save_path) if save_path is not None else None
 
         # define metrics
         self.metrics = metrics
@@ -126,25 +128,18 @@ class Inferencer(BaseTrainer):
             for met in self.metrics["inference"]:
                 metrics.update(met.name, met(**batch))
 
-        # Some saving logic. This is an example
-        # Use if you need to save predictions on disk
-
-        batch_size = batch["logits"].shape[0]
+        batch_size = batch["orig"].shape[0]
         current_id = batch_idx * batch_size
 
         for i in range(batch_size):
             # clone because of
             # https://github.com/pytorch/pytorch/issues/1995
-            logits = batch["logits"][i].clone()
-            label = batch["labels"][i].clone()
-            pred_label = logits.argmax(dim=-1)
-
-            output_id = current_id + i
-
             output = {
-                "pred_label": pred_label,
-                "label": label,
+                "orig": batch["orig"][i].detach().cpu().clone(),
+                "recon": batch["recon"][i].detach().cpu().clone(),
+                "codes": batch["codes"][i].detach().cpu().clone(),
             }
+            output_id = current_id + i
 
             if self.save_path is not None:
                 # you can use safetensors or other lib here
@@ -166,7 +161,8 @@ class Inferencer(BaseTrainer):
         self.is_train = False
         self.model.eval()
 
-        self.evaluation_metrics.reset()
+        if self.evaluation_metrics is not None:
+            self.evaluation_metrics.reset()
 
         # create Save dir
         if self.save_path is not None:
@@ -185,4 +181,6 @@ class Inferencer(BaseTrainer):
                     metrics=self.evaluation_metrics,
                 )
 
+        if self.evaluation_metrics is None:
+            return {}
         return self.evaluation_metrics.result()
