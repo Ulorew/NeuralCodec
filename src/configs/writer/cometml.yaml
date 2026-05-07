@@ -1,7 +1,7 @@
 _target_: src.logger.CometMLWriter
 project_name: "DL_HW4"
 workspace: null
-run_name: "gan_training"
+run_name: "gan_training_eval16"
 mode: "online"
 loss_names: [ "loss", "gen_loss", "gan_alpha", "adv_loss", "rec_loss", "feat_loss", "comm_loss",
               "rec_loss_mel_512", "rec_loss_mel_2048",

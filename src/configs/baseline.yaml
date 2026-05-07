@@ -17,11 +17,11 @@ optimizer:
 lr_scheduler:
   gen:
     _target_: torch.optim.lr_scheduler.StepLR
-    gamma: 0.982
+    gamma: 0.99
     step_size: ${trainer.epoch_len}
   discr:
     _target_: torch.optim.lr_scheduler.StepLR
-    gamma: 0.982
+    gamma: 0.99
     step_size: ${trainer.epoch_len}
 
 loss_function:
@@ -37,13 +37,14 @@ loss_function:
 trainer:
   log_step: 50
   n_epochs: 200
-  epoch_len: 200
-  max_grad_norm: 100
+  epoch_len: 100
+  eval_batch_size: 16
+  max_grad_norm: 20
   device_tensors: [ "orig" ] # which tensors should be on device (ex. GPU)
-  resume_from: "checkpoint-epoch5.pth" # null or path to the checkpoint dir with *.pth and config.yaml
+  resume_from: "checkpoint-epoch65.pth" # null or path to the checkpoint dir with *.pth and config.yaml
   device: auto # device name or "auto"
   override: False # if True, will override the previous run with the same name
-  monitor: "off" # "off" or "max/min metric_name", i.e. our goal is to maximize/minimize metric
+  monitor: "max test_STOI" # "off" or "max/min metric_name", i.e. our goal is to maximize/minimize metric
   save_period: 5 # checkpoint each save_period epochs in addition to the best epoch
   early_stop: ${trainer.n_epochs} # epochs for early stopping
   save_dir: "saved"

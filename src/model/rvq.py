@@ -39,24 +39,21 @@ class RVQCodebook(nn.Module):
 
         pivot = self.book[pivot_id].view(B, T, D)
         dead_cnt = torch.zeros((), dtype=torch.long, device=x.device)
-        perp = torch.zeros((), dtype=torch.float, device=x.device)
+
+        mask = F.one_hot(pivot_id, self.size).to(x.dtype)  # (N, C)
+        nbcnt = mask.sum(dim=0) / N
+        nbsum = (mask.transpose(0, 1) @ y) / N  # (C, D)
 
         if self.training and update_codebook:
-            mask = F.one_hot(pivot_id, self.size).to(x.dtype)  # (N, C)
-
-            nbcnt = mask.sum(dim=0) / N
-
-            nbsum = (mask.transpose(0, 1) @ y) / N  # (C, D)
-
             self.ema_cnt.mul_(self.eta).add_(nbcnt * (1 - self.eta))
             self.ema_sum.mul_(self.eta).add_(nbsum * (1 - self.eta))
-
-            p = self.ema_cnt / self.ema_cnt.sum().clamp_min(self.eps)
-            perp = (-(p * p.clamp_min(self.eps).log()).sum()).exp()
 
             self.book.copy_(
                 self.ema_sum / self.ema_cnt.clamp_min(self.eps).unsqueeze(1)
             )  # TODO: switch to eq?
+
+            # p = self.ema_cnt / self.ema_cnt.sum().clamp_min(self.eps)
+            # perp = (-(p * p.clamp_min(self.eps).log()).sum()).exp()
 
             dead_mask = self.ema_cnt < self.min_nb_ratio
             dead_cnt = dead_mask.sum().to(torch.long)
@@ -67,6 +64,9 @@ class RVQCodebook(nn.Module):
             self.ema_cnt[dead_mask] = self.min_nb_ratio
             self.ema_sum[dead_mask] = samples * self.min_nb_ratio
             self.book[dead_mask] = samples
+
+        p = nbcnt / nbcnt.sum().clamp_min(self.eps)
+        perp = (-(p * p.clamp_min(self.eps).log()).sum()).exp()
 
         return pivot, pivot_id.view(B, T), dead_cnt, perp
 

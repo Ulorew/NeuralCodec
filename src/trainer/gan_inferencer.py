@@ -147,6 +147,14 @@ class GANInferencer(BaseTrainer):
 
         return batch
 
+    def prepare_part(self, part):
+        self.is_train = False
+        self.model.eval()
+        (self.save_path / part).mkdir(exist_ok=True, parents=True)
+
+        if self.evaluation_metrics is not None:
+            self.evaluation_metrics.reset()
+
     def _inference_part(self, part, dataloader):
         """
         Run inference on a given partition and save predictions
@@ -158,15 +166,7 @@ class GANInferencer(BaseTrainer):
             logs (dict): metrics, calculated on the partition.
         """
 
-        self.is_train = False
-        self.model.eval()
-
-        if self.evaluation_metrics is not None:
-            self.evaluation_metrics.reset()
-
-        # create Save dir
-        if self.save_path is not None:
-            (self.save_path / part).mkdir(exist_ok=True, parents=True)
+        self.prepare_part(part)
 
         with torch.no_grad():
             for batch_idx, batch in tqdm(

@@ -10,4 +10,4 @@ inferencer:
   device: auto # device name or "auto"
   save_path: "infer" # any name here, can be a dataset name
   seed: 1
-  from_pretrained: "saved/testing/checkpoint-epoch40.pth" # path to the pretrained model
+  from_pretrained: "saved/gan_training/checkpoint-epoch50.pth" # path to the pretrained model

@@ -8,14 +8,16 @@ val:
   sampling_rate: 16000
   window_size: 0.5
   fixed_cuts: True
-  #  limit: 10
+  limit: 1024
   name: "test-clean"
-#test:
-#  _target_: src.datasets.LibriSpeechDataset
-#  sampling_rate: 16000
-#  window_size: 0.5
-#  fixed_cuts: True
-#  name: "test-clean"
+test:
+  _target_: src.datasets.LibriSpeechDataset
+  sampling_rate: 16000
+  window_size: 2
+  fixed_cuts: True
+  limit: 256
+  custom_index: True
+  name: "test-clean"
 
 
 #

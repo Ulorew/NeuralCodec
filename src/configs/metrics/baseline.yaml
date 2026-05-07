@@ -1,13 +1,16 @@
 device: "auto"
-train: [ ] # metrics that are calculated during training
-#  - _target_: src.metrics.ExampleMetric
-#    metric:
-#      _target_: torchmetrics.classification.MulticlassAccuracy
-#      num_classes: 10
-#    device: ${metrics.device}
-#    name: "TRAIN_MulticlassAccuracy" # just an example to see difference
-inference: [ ]# metrics that are calculated during inference (eval)
+train: [ ]  # metrics that are calculated during training
+# just an example to see difference
+inference:
+  - _target_: src.metrics.STOIMetric
+    sampling_rate: 16000
+    device: ${metrics.device}
+    name: "STOI"
 
+  - _target_: src.metrics.NISQAMetric
+    sampling_rate: 16000
+    device: ${metrics.device}
+    name: "NISQA"
 #  - _target_: src.metrics.ExampleMetric
 #    metric:
 #      _target_: torchmetrics.classification.MulticlassAccuracy
