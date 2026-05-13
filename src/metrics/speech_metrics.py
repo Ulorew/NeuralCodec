@@ -14,7 +14,7 @@ class STOIMetric(BaseMetric):
 
     def __call__(self, orig: torch.Tensor, recon: torch.Tensor, **batch):
         stoi = self.metric(recon, orig)
-        return stoi
+        return stoi.item()
 
 
 class NISQAMetric(BaseMetric):
@@ -26,5 +26,5 @@ class NISQAMetric(BaseMetric):
         recon = recon.detach()
         if recon.dim() == 3:
             recon = recon.squeeze(1)
-        nisqa = self.metric(recon.detach()).mean()
-        return nisqa
+        nisqa = self.metric(recon.detach())[0]
+        return nisqa.item()

@@ -70,7 +70,7 @@ def get_dataloaders(config, device):
     for dataset_partition in config.datasets.keys():
         dataset = datasets[dataset_partition]
         batch_size = config.dataloader.batch_size
-        if dataset_partition != "train":
+        if dataset_partition != "train" and "trainer" in config.keys():
             batch_size = config.trainer.get("eval_batch_size", batch_size)
 
         assert batch_size <= len(dataset), (

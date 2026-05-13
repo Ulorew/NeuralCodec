@@ -2,7 +2,7 @@ defaults:
   - model: soundstream
   - writer: cometml
   - metrics: baseline
-  - datasets: librispeech
+  - datasets: librispeech_05s
   - dataloader: baseline
   - transforms: baseline
   - _self_
@@ -10,18 +10,20 @@ optimizer:
   gen:
     _target_: torch.optim.AdamW
     lr: 3e-4
+    weight_decay: 0.0
   discr:
     _target_: torch.optim.AdamW
     lr: 3e-4
+    weight_decay: 0.0
 
 lr_scheduler:
   gen:
     _target_: torch.optim.lr_scheduler.StepLR
-    gamma: 0.99
+    gamma: 0.995
     step_size: ${trainer.epoch_len}
   discr:
     _target_: torch.optim.lr_scheduler.StepLR
-    gamma: 0.99
+    gamma: 0.995
     step_size: ${trainer.epoch_len}
 
 loss_function:
@@ -32,6 +34,7 @@ loss_function:
     l_rec: 1
     l_comm: 1
     rec_n_mels: 64
+    rec_log_weight: 0.1
   discr:
     _target_: src.loss.DiscriminatorLoss
 trainer:
@@ -39,9 +42,9 @@ trainer:
   n_epochs: 200
   epoch_len: 100
   eval_batch_size: 16
-  max_grad_norm: 20
+  max_grad_norm: 100
   device_tensors: [ "orig" ] # which tensors should be on device (ex. GPU)
-  resume_from: "checkpoint-epoch65.pth" # null or path to the checkpoint dir with *.pth and config.yaml
+  resume_from: "checkpoint-epoch105.pth" # null or path to the checkpoint dir with *.pth and config.yaml
   device: auto # device name or "auto"
   override: False # if True, will override the previous run with the same name
   monitor: "max test_STOI" # "off" or "max/min metric_name", i.e. our goal is to maximize/minimize metric

@@ -1,8 +1,9 @@
 _target_: src.model.SoundStreamGAN
-gen_base_channels: 16 # C
+gen_base_channels: 32 # C
 discr_stft_channels: 32
 discr_wave_width: 1
-cb_cnt: 4
+cb_cnt: 8
 cb_size: 1024
 code_dim: 64 #D
 rvq_eta: 0.99
+min_nb_ratio: 7e-4

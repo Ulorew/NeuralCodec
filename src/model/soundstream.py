@@ -58,12 +58,14 @@ class Decoder(nn.Module):
 
 
 class SoundStreamGenerator(nn.Module):
-    def __init__(self, base_channels, cb_cnt, cb_size, code_dim, rvq_eta):
+    def __init__(self, base_channels, cb_cnt, cb_size, code_dim, rvq_eta, min_nb_ratio):
         super().__init__()
 
         self.enc = Encoder(base_channels, code_dim)
         self.dec = Decoder(base_channels, code_dim)
-        self.rvq = RVQ(cb_cnt, cb_size, code_dim, rvq_eta)
+        self.rvq = RVQ(
+            cb_cnt, cb_size, code_dim, eta=rvq_eta, min_nb_ratio=min_nb_ratio
+        )
 
     def forward(self, orig, update_codebook=False, **batch):
         lat_raw = self.enc(orig)
@@ -289,10 +291,16 @@ class SoundStreamGAN(nn.Module):
         cb_size,
         code_dim,
         rvq_eta,
+        min_nb_ratio,
     ):
         super().__init__()
         self.gen = SoundStreamGenerator(
-            gen_base_channels, cb_cnt, cb_size, code_dim, rvq_eta
+            gen_base_channels,
+            cb_cnt,
+            cb_size,
+            code_dim,
+            rvq_eta,
+            min_nb_ratio=min_nb_ratio,
         )
         self.discr = SoundStreamDiscriminator(discr_stft_channels, discr_wave_width)
 

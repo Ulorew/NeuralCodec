@@ -1,7 +1,7 @@
 defaults:
   - model: soundstream
   - metrics: baseline
-  - datasets: librispeech_onebatchtest # we do not want to run inference on training data
+  - datasets: librispeech_full # we do not want to run inference on training data
   - dataloader: baseline
   - transforms: baseline
   - _self_
@@ -10,4 +10,5 @@ inferencer:
   device: auto # device name or "auto"
   save_path: "infer" # any name here, can be a dataset name
   seed: 1
-  from_pretrained: "saved/gan_training/checkpoint-epoch50.pth" # path to the pretrained model
+  eval_batch_size: 16
+  from_pretrained: "saved/gan_training_bit6_200ep_0.5s_mixed_loss_C32_great/model_best.pth" # path to the pretrained model

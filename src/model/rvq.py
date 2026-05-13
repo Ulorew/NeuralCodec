@@ -72,14 +72,17 @@ class RVQCodebook(nn.Module):
 
 
 class RVQ(nn.Module):
-    def __init__(self, cb_cnt, cb_size, dim, eta=0.99):
+    def __init__(self, cb_cnt, cb_size, dim, min_nb_ratio, eta=0.99):
         super().__init__()
 
         self.dim = dim
         self.cb_cnt = cb_cnt
         self.cb_size = cb_size
         self.books = nn.ModuleList(
-            [RVQCodebook(cb_size, dim, eta=eta) for _ in range(cb_cnt)]
+            [
+                RVQCodebook(cb_size, dim, min_nb_ratio=min_nb_ratio, eta=eta)
+                for _ in range(cb_cnt)
+            ]
         )
 
     def forward(self, lat_raw, update_codebook=False, **batch):

@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn.functional as F
 import torchaudio
@@ -18,56 +20,59 @@ class AdversarialLoss(nn.Module):
 
 
 class ReconstructionLoss(nn.Module):
-    def __init__(self, n_mels=64):
+    def __init__(
+        self,
+        n_mels=64,
+        scales=(64, 128, 256, 512, 1024, 2048),
+        log_weight=1.0,
+        eps=1e-5,
+    ):
         super().__init__()
-        self.ss = [256, 512, 1024, 2048]  # TODO [64, 128] too small for n_mels=64
+
+        self.ss = list(scales)
+        self.log_weight = log_weight
+        self.eps = eps
 
         self.transforms = nn.ModuleList(
             [
                 torchaudio.transforms.MelSpectrogram(
-                    n_mels=n_mels, n_fft=s, win_length=s, hop_length=s // 4, power=1
+                    n_mels=n_mels,
+                    n_fft=s,
+                    win_length=s,
+                    hop_length=s // 4,
+                    power=1.0,
                 )
                 for s in self.ss
             ]
         )
 
-    def forward(self, orig, recon, eps=1e-8, **batch):
-        # loss = 0
-        # loss += F.l1_loss(orig, recon) * 100
-        #
-        # tf = self.transforms[3]
-        # mel_orig = tf(orig)
-        # mel_recon = tf(recon)
-        #
-        # loss += F.l1_loss(mel_orig, mel_recon)
-
+    def forward(self, orig, recon, **batch):
         out = {}
+        losses = []
 
         for s, tf in zip(self.ss, self.transforms):
             mel_orig = tf(orig)
             mel_recon = tf(recon)
 
-            mel_loss = F.l1_loss(mel_orig, mel_recon)
-            out[f"rec_loss_mel_{s}"] = mel_loss
+            mel_l1 = F.l1_loss(mel_recon, mel_orig)
 
-            # loss += alpha * F.mse_loss(
-            #     torch.log(mel_recon + eps), torch.log(mel_orig + eps)
-            # )
+            log_diff = torch.log(mel_recon.clamp_min(self.eps)) - torch.log(
+                mel_orig.clamp_min(self.eps)
+            )
 
-            # alpha = math.sqrt(s / 2)
-            # loss += (
-            #     alpha
-            #     * torch.linalg.norm(
-            #         torch.log(mel_recon + eps) - torch.log(mel_orig + eps),
-            #         dim=-2,
-            #         ord=2,
-            #     ).mean()
-            # )
-        # TODO: return to simpler loss?
+            log_l2 = torch.linalg.vector_norm(log_diff, ord=2, dim=-2).mean()
 
-        loss = torch.stack(list(out.values())).mean()
-        out["rec_loss"] = loss
+            alpha = math.sqrt(s / 2)
 
+            loss_s = mel_l1 + self.log_weight * alpha * log_l2
+
+            out[f"rec_loss_mel_{s}"] = mel_l1
+            out[f"rec_loss_logmel_{s}"] = log_l2
+            out[f"rec_loss_scale_{s}"] = loss_s
+
+            losses.append(loss_s)
+
+        out["rec_loss"] = torch.stack(losses).mean()
         return out
 
 
@@ -95,9 +100,11 @@ class CommitmentLoss(nn.Module):
 
 
 class GeneratorLoss(nn.Module):
-    def __init__(self, l_adv=1, l_feat=100, l_rec=1, l_comm=1, rec_n_mels=64):
+    def __init__(
+        self, l_adv=1, l_feat=100, l_rec=1, l_comm=1, rec_n_mels=64, rec_log_weight=1.0
+    ):
         super().__init__()
-        self.rec_loss = ReconstructionLoss(n_mels=rec_n_mels)
+        self.rec_loss = ReconstructionLoss(n_mels=rec_n_mels, log_weight=rec_log_weight)
         self.feat_loss = FeatureLoss()
         self.adv_loss = AdversarialLoss()
         self.comm_loss = CommitmentLoss()

@@ -1,14 +1,17 @@
 _target_: src.logger.CometMLWriter
 project_name: "DL_HW4"
 workspace: null
-run_name: "gan_training_eval16"
+run_name: "gan_training_bit6_400ep_05s_l1_loss_C32_noadv"
 mode: "online"
 loss_names: [ "loss", "gen_loss", "gan_alpha", "adv_loss", "rec_loss", "feat_loss", "comm_loss",
               "rec_loss_mel_512", "rec_loss_mel_2048",
+              "rec_loss_logmel_512", "rec_loss_logmel_2048",
+              "rec_loss_scale_512", "rec_loss_scale_2048",
   #"rec_loss_mel_64", "rec_loss_mel_128", "rec_loss_mel_256", "rec_loss_mel_512", "rec_loss_mel_1024", "rec_loss_mel_2048",
               "discr_loss", "discr_orig_loss", "discr_fake_loss",
               "dead_code_ratio", "mean_perplexity",
               "perplexity_book_0","perplexity_book_1","perplexity_book_2","perplexity_book_3",
+              "perplexity_book_4","perplexity_book_5","perplexity_book_6","perplexity_book_7",
 ] # which losses to log (useful for multi-loss tasks, s.a. GANs)
 log_checkpoints: False # set to True if you want to log save_dir with checkpoints to W&B
 id_length: 32 # length of the run_id
