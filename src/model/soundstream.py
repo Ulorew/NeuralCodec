@@ -76,6 +76,25 @@ class SoundStreamGenerator(nn.Module):
         assert out["lat_raw"].shape == out["lat_quant"].shape
         return out
 
+    def encode(self, orig, update_codebook=False, **batch):
+        lat_raw = self.enc(orig)
+        out = self.rvq(lat_raw, update_codebook=update_codebook)
+        out["lat_raw"] = lat_raw
+        return out
+
+    def decode(self, codes=None, lat_quant=None, **batch):
+        out = {}
+
+        if lat_quant is None:
+            out = self.rvq.reconstruct(codes)
+            lat_quant = out["lat_quant"]
+
+        recon = self.dec(lat_quant)
+
+        out["recon"] = recon
+
+        return out
+
 
 class WaveDiscriminator(nn.Module):
     """
@@ -283,15 +302,15 @@ class SoundStreamDiscriminator(nn.Module):
 
 class SoundStreamGAN(nn.Module):
     def __init__(
-        self,
-        gen_base_channels,
-        discr_stft_channels,
-        discr_wave_width,
-        cb_cnt,
-        cb_size,
-        code_dim,
-        rvq_eta,
-        min_nb_ratio,
+            self,
+            gen_base_channels,
+            discr_stft_channels,
+            discr_wave_width,
+            cb_cnt,
+            cb_size,
+            code_dim,
+            rvq_eta,
+            min_nb_ratio,
     ):
         super().__init__()
         self.gen = SoundStreamGenerator(

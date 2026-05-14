@@ -31,9 +31,9 @@ class RVQCodebook(nn.Module):
 
         cross = y @ self.book.transpose(0, 1)  # TODO: matrices
         dist = (
-            (y**2).sum(dim=1).unsqueeze(1)
-            + (self.book**2).sum(dim=1).unsqueeze(0)
-            - 2 * cross
+                (y ** 2).sum(dim=1).unsqueeze(1)
+                + (self.book ** 2).sum(dim=1).unsqueeze(0)
+                - 2 * cross
         )
         pivot_id = dist.argmin(dim=-1)
 
@@ -120,3 +120,20 @@ class RVQ(nn.Module):
         )
 
         return out
+
+    def reconstruct(self, codes, **batch):
+        B, T, _ = codes.shape
+        N = B * T
+
+        codes = codes.view((N, self.cb_cnt))
+        x = torch.zeros((N, self.dim))
+
+        for book_idx, book in enumerate(self.books):
+            slice = codes[:, book_idx]
+            x += book.book[slice]
+
+        x = x.reshape((B, T, self.dim))
+        x = x.transpose(1, 2)  # to (B, D, T)
+        return {
+            "lat_quant": x
+        }

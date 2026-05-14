@@ -1,9 +1,6 @@
-import math
-
 import torch
 import torchaudio
 from torch.nn import functional as F
-from torchcodec.decoders import AudioDecoder
 
 from src.datasets.base_dataset import BaseDataset
 from src.utils.io_utils import ROOT_PATH, read_json, write_json
@@ -52,13 +49,10 @@ class LibriSpeechDataset(BaseDataset):
             raise ValueError(f"Can't find the dataset at {data_path}")
 
         for fp in data_path.rglob("*.flac"):
-            dec = AudioDecoder(fp)
-
-            md = dec.metadata
+            md = torchaudio.info(str(fp))
 
             sr = md.sample_rate
-            duration_s = md.duration_seconds
-            duration_d = math.floor(duration_s * sr)
+            duration_d = md.num_frames
 
             if sr != self.sampling_rate:
                 raise ValueError(
