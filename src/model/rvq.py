@@ -125,12 +125,12 @@ class RVQ(nn.Module):
         B, T, _ = codes.shape
         N = B * T
 
-        codes = codes.view((N, self.cb_cnt))
-        x = torch.zeros((N, self.dim))
+        codes = codes.reshape((N, self.cb_cnt))
+        x = torch.zeros((N, self.dim), device=codes.device)
 
         for book_idx, book in enumerate(self.books):
-            slice = codes[:, book_idx]
-            x += book.book[slice]
+            code_ids = codes[:, book_idx]
+            x += book.book[code_ids]
 
         x = x.reshape((B, T, self.dim))
         x = x.transpose(1, 2)  # to (B, D, T)

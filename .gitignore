@@ -108,6 +108,7 @@ wandb/
 .cometml-runs/
 outputs/
 demo_artifacts/
+demo_data/
 .cache/
 
 # editor, os cache directory
