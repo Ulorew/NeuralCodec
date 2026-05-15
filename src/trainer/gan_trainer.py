@@ -127,6 +127,41 @@ class GANTrainer(BaseTrainer):
             # Log Stuff
             pass
 
+    def _log_audio_batch(self, split, batch, sample_rate):
+        """
+        Log fixed original/reconstructed audio pairs for qualitative tracking.
+        """
+        if self.writer is None:
+            return
+
+        outputs = self.model(**batch, update_codebook=False)
+        orig = batch["orig"]
+        recon = outputs["recon"]
+        audio_count = min(
+            self.cfg_trainer.get("audio_log_samples", orig.shape[0]),
+            orig.shape[0],
+            recon.shape[0],
+        )
+
+        for index in range(audio_count):
+            orig_audio, recon_audio = self._prepare_audio_pair_for_logging(
+                orig[index], recon[index]
+            )
+            sample_name = f"audio/sample_{index:02d}"
+            self.writer.add_audio(
+                f"{sample_name}/orig", orig_audio, sample_rate=sample_rate
+            )
+            self.writer.add_audio(
+                f"{sample_name}/recon", recon_audio, sample_rate=sample_rate
+            )
+
+    @staticmethod
+    def _prepare_audio_pair_for_logging(orig, recon):
+        audio_len = min(orig.shape[-1], recon.shape[-1])
+        orig = orig[..., :audio_len].detach().clamp(-1, 1)
+        recon = recon[..., :audio_len].detach().clamp(-1, 1)
+        return orig, recon
+
     def _set_epoch(self, epoch):
         self.writer.set_step((epoch - 1) * self.epoch_len)
         self.writer.add_scalar("epoch", epoch)

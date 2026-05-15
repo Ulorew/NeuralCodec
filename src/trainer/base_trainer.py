@@ -85,6 +85,7 @@ class BaseTrainer:
         self.evaluation_dataloaders = {
             k: v for k, v in dataloaders.items() if k != "train"
         }
+        self.audio_log_batches = self._prepare_audio_log_batches(dataloaders)
 
         # define epochs
         self._last_epoch = 0  # required for saving on interruption
@@ -253,6 +254,8 @@ class BaseTrainer:
             val_logs = self._evaluation_epoch(epoch, part, dataloader)
             logs.update(**{f"{part}_{name}": value for name, value in val_logs.items()})
 
+        self._log_epoch_audio_samples(epoch)
+
         return logs
 
     def _set_epoch(self, epoch):
@@ -382,6 +385,90 @@ class BaseTrainer:
                     batch[transform_name]
                 )
         return batch
+
+    def _prepare_audio_log_batches(self, dataloaders):
+        """
+        Cache fixed audio examples from configured splits for epoch-level
+        qualitative logging.
+        """
+        sample_count = self.cfg_trainer.get("audio_log_samples", 0)
+        splits = self.cfg_trainer.get("audio_log_splits", [])
+        if sample_count <= 0 or not splits:
+            return {}
+
+        audio_batches = {}
+        for split in splits:
+            dataloader = dataloaders.get(split)
+            if dataloader is None:
+                self.logger.warning(
+                    "Audio logging requested unknown split '%s'. Skipping.", split
+                )
+                continue
+
+            dataset = dataloader.dataset
+            count = min(sample_count, len(dataset))
+            if count == 0:
+                continue
+
+            items = [dataset[index] for index in range(count)]
+            batch = dataloader.collate_fn(items)
+            audio_batches[split] = self._clone_batch_to_cpu(batch)
+        return audio_batches
+
+    def _clone_batch_to_cpu(self, batch):
+        cloned = {}
+        for key, value in batch.items():
+            if isinstance(value, torch.Tensor):
+                cloned[key] = value.detach().cpu().clone()
+            elif isinstance(value, list):
+                cloned[key] = value.copy()
+            else:
+                cloned[key] = value
+        return cloned
+
+    def _should_log_audio_epoch(self, epoch):
+        interval = self.cfg_trainer.get("audio_log_interval", 0)
+        if self.writer is None or not self.audio_log_batches:
+            return False
+        if interval <= 0:
+            return False
+        return epoch == 1 or epoch % interval == 0
+
+    def _audio_log_sample_rate(self, split):
+        sample_rate = self.cfg_trainer.get("audio_log_sample_rate")
+        if sample_rate is not None:
+            return sample_rate
+
+        datasets_config = self.config.get("datasets", {})
+        split_config = datasets_config.get(split)
+        if split_config is None:
+            return None
+        return split_config.get("sampling_rate")
+
+    @torch.no_grad()
+    def _log_epoch_audio_samples(self, epoch):
+        if not self._should_log_audio_epoch(epoch):
+            return
+
+        was_training = self.model.training
+        was_train_mode = self.is_train
+        self.is_train = False
+        self.model.eval()
+
+        try:
+            for split, cached_batch in self.audio_log_batches.items():
+                self.writer.set_step(epoch * self.epoch_len, split)
+                batch = self._clone_batch_to_cpu(cached_batch)
+                batch = self.move_batch_to_device(batch)
+                batch = self.transform_batch(batch)
+                self._log_audio_batch(split, batch, self._audio_log_sample_rate(split))
+        finally:
+            self.is_train = was_train_mode
+            if was_training:
+                self.model.train()
+
+    def _log_audio_batch(self, split, batch, sample_rate):
+        return None
 
     def _clip_grad_norm(self, model=None):
         """

@@ -29,8 +29,8 @@ lr_scheduler:
 loss_function:
   gen:
     _target_: src.loss.GeneratorLoss
-    l_adv: 0.1
-    l_feat: 10
+    l_adv: 0.15
+    l_feat: 15
     l_rec: 1
     l_comm: 1
     rec_n_mels: 64
@@ -39,16 +39,20 @@ loss_function:
     _target_: src.loss.DiscriminatorLoss
 trainer:
   log_step: 50
+  audio_log_interval: 10 # log fixed train/val/test audio samples every N epochs; 0 disables
+  audio_log_samples: 4 # number of fixed samples to log from each split
+  audio_log_splits: [ "train", "val", "test" ]
+  audio_log_sample_rate: null # if null, use sampling_rate from the split dataset config
   n_epochs: 200
   epoch_len: 100
   eval_batch_size: 16
   max_grad_norm: 100
   device_tensors: [ "orig" ] # which tensors should be on device (ex. GPU)
-  resume_from: "checkpoint-epoch105.pth" # null or path to the checkpoint dir with *.pth and config.yaml
+  resume_from: "model_best.pth" # null or path to the checkpoint dir with *.pth and config.yaml
   device: auto # device name or "auto"
   override: False # if True, will override the previous run with the same name
   monitor: "max test_STOI" # "off" or "max/min metric_name", i.e. our goal is to maximize/minimize metric
-  save_period: 5 # checkpoint each save_period epochs in addition to the best epoch
+  save_period: 50 # checkpoint each save_period epochs in addition to the best epoch
   early_stop: ${trainer.n_epochs} # epochs for early stopping
   save_dir: "saved"
   seed: 1
