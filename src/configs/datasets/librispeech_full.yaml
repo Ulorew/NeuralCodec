@@ -1,30 +1,26 @@
-train:
-  _target_: src.datasets.LibriSpeechDataset
-  sampling_rate: 16000
-  window_size: 0.5
-  name: "train-clean-100"
-val:
-  _target_: src.datasets.LibriSpeechDataset
+#train_win05:
+#  _target_: src.datasets.AudioDataset
+#  sampling_rate: 16000
+#  window_size: 0.5
+#  name: "train-clean-100"
+#train_full:
+#  _target_: src.datasets.AudioDataset
+#  sampling_rate: 16000
+#  window_size: null
+#  base_factor: 200
+#  name: "train-clean-100"
+#
+#test_win05:
+#  _target_: src.datasets.AudioDataset
+#  sampling_rate: 16000
+#  window_size: 0.5
+#  base_factor: 200
+#  custom_index: True
+#  name: "test-clean"
+
+test_full:
+  _target_: src.datasets.AudioDataset
   sampling_rate: 16000
   window_size: null
   base_factor: 200
-  fixed_cuts: True
-  limit: 1024
-  name: "test-clean"
-test:
-  _target_: src.datasets.LibriSpeechDataset
-  sampling_rate: 16000
-  window_size: null
-  base_factor: 200
-  limit: null
-  fixed_cuts: True
-  name: "test-clean"
-test5s:
-  _target_: src.datasets.LibriSpeechDataset
-  sampling_rate: 16000
-  window_size: 5
-  limit: null
-  base_factor: 200
-  custom_index: True
-  fixed_cuts: True
   name: "test-clean"

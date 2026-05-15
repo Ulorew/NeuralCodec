@@ -11,4 +11,4 @@ inferencer:
   save_path: "infer" # any name here, can be a dataset name
   seed: 1
   eval_batch_size: 16
-  from_pretrained: "saved/gan_training_bit6_200ep_0.5s_mixed_loss_C32_great/model_best.pth" # path to the pretrained model
+  from_pretrained: "saved/gan_training_bit6_200ep_05s_mixed_loss_C32_panda/model_best.pth" # path to the pretrained model

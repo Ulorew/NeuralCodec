@@ -1,1 +1,1 @@
-from src.datasets.librispeech import LibriSpeechDataset
+from src.datasets.audiodataset import AudioDataset

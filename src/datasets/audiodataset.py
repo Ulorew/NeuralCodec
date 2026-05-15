@@ -7,11 +7,12 @@ from src.datasets.base_dataset import BaseDataset
 from src.utils.io_utils import ROOT_PATH, read_json, write_json
 
 
-class LibriSpeechDataset(BaseDataset):
+class AudioDataset(BaseDataset):
     def __init__(
             self,
             sampling_rate,
             window_size,
+            dataset_name = "LibriSpeech",
             name="train-clean-100",
             base_factor=1,
             fixed_cuts=False,
@@ -19,6 +20,7 @@ class LibriSpeechDataset(BaseDataset):
             *args,
             **kwargs,
     ):
+        self.dataset_name = dataset_name
         self.sampling_rate = sampling_rate
         self.trunc = window_size is not None
         self.base_factor = base_factor
@@ -31,7 +33,7 @@ class LibriSpeechDataset(BaseDataset):
         self.fixed_cuts = fixed_cuts
         self.custom_index = custom_index
 
-        index_path = ROOT_PATH / "data" / "LibriSpeech" / name / "index.json"
+        index_path = ROOT_PATH / "data" / dataset_name / name / "index.json"
 
         if index_path.exists() and not custom_index:
             index = read_json(str(index_path))
@@ -45,7 +47,7 @@ class LibriSpeechDataset(BaseDataset):
 
     def _create_index(self, name):
         index = []
-        data_path = ROOT_PATH / "data" / "LibriSpeech" / name
+        data_path = ROOT_PATH / "data" / self.dataset_name / name
         if not data_path.exists():
             raise ValueError(f"Can't find the dataset at {data_path}")
 
@@ -76,6 +78,9 @@ class LibriSpeechDataset(BaseDataset):
             )
 
             index.append(info)
+
+        # sort by duration for optimal padding
+        index.sort(key=lambda x: x["duration"])
 
         # write index to disk
         if not self.custom_index:
@@ -128,7 +133,7 @@ class LibriSpeechDataset(BaseDataset):
         data_object, amp = self.load_object(data_dict)
         data_label = data_dict["label"]
 
-        instance_data = {"orig": data_object, "label": data_label, "amp": amp}
+        instance_data = {"orig": data_object, "label": data_label, "length":data_object.shape[-1],"amp": amp}
         instance_data = self.preprocess_data(instance_data)
 
         return instance_data
