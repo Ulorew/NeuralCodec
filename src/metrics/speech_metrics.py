@@ -14,11 +14,14 @@ class STOIMetric(BaseMetric):
         super().__init__(*args, **kwargs)
         self.metric = ShortTimeObjectiveIntelligibility(sampling_rate)
 
-    def __call__(self, orig: torch.Tensor, recon: torch.Tensor, length: torch.Tensor, **batch):
+    def __call__(
+        self, orig: torch.Tensor, recon: torch.Tensor, length: torch.Tensor, **batch
+    ):
         scores = []
         for orig_s, recon_s, l in zip(orig, recon, length):
-            orig_s = orig_s[:l].detach()
-            recon_s = recon_s[:l].detach()
+            sample_length = _sample_length(l)
+            orig_s = orig_s[..., :sample_length].detach()
+            recon_s = recon_s[..., :sample_length].detach()
             with warnings.catch_warnings(record=True) as caught_warnings:
                 warnings.simplefilter("always", RuntimeWarning)
                 stoi_s = self.metric(orig_s, recon_s)
@@ -39,7 +42,7 @@ class NISQAMetric(BaseMetric):
     def __call__(self, recon: torch.Tensor, length: torch.Tensor, **batch):
         scores = []
         for recon_s, l in zip(recon, length):
-            recon_s = recon_s[:l].detach()
+            recon_s = recon_s[..., :_sample_length(l)].detach()
             try:
                 nisqa_s = self.metric(recon_s)
             except RuntimeError as err:
@@ -57,6 +60,12 @@ def _has_short_stoi_warning(caught_warnings):
         and "Not enough STFT frames" in str(warning.message)
         for warning in caught_warnings
     )
+
+
+def _sample_length(length):
+    if isinstance(length, torch.Tensor):
+        return int(length.item())
+    return int(length)
 
 
 def _mean_or_none(scores):

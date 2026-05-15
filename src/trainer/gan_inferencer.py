@@ -128,16 +128,24 @@ class GANInferencer(BaseTrainer):
             for met in self.metrics["inference"]:
                 metrics.update(met.name, met(**batch))
 
-        batch_size = batch["orig"].shape[0]
+        batch_size, _, T = batch["orig"].shape
         current_id = batch_idx * batch_size
+
+        code_T = batch["codes"].shape[1]
 
         for i in range(batch_size):
             # clone because of
             # https://github.com/pytorch/pytorch/issues/1995
+            lt = batch["length"][i].detach().cpu().clone()
+            sample_length = lt.item()
+
+            code_cnt = code_T * sample_length // T
+
             output = {
-                "orig": batch["orig"][i].detach().cpu().clone(),
-                "recon": batch["recon"][i].detach().cpu().clone(),
-                "codes": batch["codes"][i].detach().cpu().clone(),
+                "orig": batch["orig"][i].detach().cpu().clone()[..., :sample_length],
+                "recon": batch["recon"][i].detach().cpu().clone()[..., :sample_length],
+                "codes": batch["codes"][i].detach().cpu().clone()[:code_cnt],
+                "length": lt,
             }
             output_id = current_id + i
 

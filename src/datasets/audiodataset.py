@@ -11,19 +11,19 @@ from src.utils.io_utils import ROOT_PATH, read_json, write_json
 
 class AudioDataset(BaseDataset):
     def __init__(
-            self,
-            sampling_rate,
-            window_size,
-            dataset_name="LibriSpeech",
-            name="train-clean-100",
-            base_factor=1,
-            minimal_length=0.5,
-            maximal_length=60,
-            fixed_cuts=False,
-            custom_index=False,
-            shuffle_index=False,
-            *args,
-            **kwargs,
+        self,
+        sampling_rate,
+        window_size,
+        dataset_name="LibriSpeech",
+        name="train-clean-100",
+        base_factor=1,
+        minimal_length=0.1,
+        maximal_length=600,
+        fixed_cuts=False,
+        custom_index=False,
+        shuffle_index=False,
+        *args,
+        **kwargs,
     ):
         self.dataset_name = dataset_name
         self.sampling_rate = sampling_rate
@@ -65,7 +65,7 @@ class AudioDataset(BaseDataset):
 
             sr = md.sample_rate
             duration_d = int(round(md.duration_seconds * sr))
-            if not (self.minimal_length < md.duration_seconds < self.maximal_length):
+            if not (self.minimal_length <= md.duration_seconds <= self.maximal_length):
                 continue
 
             if sr != self.sampling_rate:
@@ -74,7 +74,11 @@ class AudioDataset(BaseDataset):
                         f"Inconsistent sampling rate: expected divisible by {self.sampling_rate}, found {sr}"
                     )
 
-            if self.custom_index and self.trunc and md.duration_seconds < self.window_size:
+            if (
+                self.custom_index
+                and self.trunc
+                and md.duration_seconds < self.window_size
+            ):
                 continue
 
             info = {}
@@ -102,7 +106,6 @@ class AudioDataset(BaseDataset):
 
     def load_object(self, info):
         if self.trunc:
-
             num_frames = int(round(self.window_size * info["sampling_rate"]))
             target_frames = int(round(self.window_size * self.sampling_rate))
 
@@ -163,7 +166,12 @@ class AudioDataset(BaseDataset):
         data_object, amp = self.load_object(data_dict)
         data_label = data_dict["label"]
 
-        instance_data = {"orig": data_object, "label": data_label, "length": data_object.shape[-1], "amp": amp}
+        instance_data = {
+            "orig": data_object,
+            "label": data_label,
+            "length": data_object.shape[-1],
+            "amp": amp,
+        }
         instance_data = self.preprocess_data(instance_data)
 
         return instance_data

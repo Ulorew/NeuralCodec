@@ -302,15 +302,15 @@ class SoundStreamDiscriminator(nn.Module):
 
 class SoundStreamGAN(nn.Module):
     def __init__(
-            self,
-            gen_base_channels,
-            discr_stft_channels,
-            discr_wave_width,
-            cb_cnt,
-            cb_size,
-            code_dim,
-            rvq_eta,
-            min_nb_ratio,
+        self,
+        gen_base_channels,
+        discr_stft_channels,
+        discr_wave_width,
+        cb_cnt,
+        cb_size,
+        code_dim,
+        rvq_eta,
+        min_nb_ratio,
     ):
         super().__init__()
         self.gen = SoundStreamGenerator(

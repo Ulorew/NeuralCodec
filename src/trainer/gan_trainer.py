@@ -147,7 +147,7 @@ class GANTrainer(BaseTrainer):
             orig_audio, recon_audio = self._prepare_audio_pair_for_logging(
                 orig[index], recon[index]
             )
-            sample_name = f"audio/sample_{index:02d}"
+            sample_name = "audio/sample_{:02d}".format(index)
             self.writer.add_audio(
                 f"{sample_name}/orig", orig_audio, sample_rate=sample_rate
             )

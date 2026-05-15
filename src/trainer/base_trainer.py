@@ -173,7 +173,7 @@ class BaseTrainer:
 
             # print logged information to the screen
             for key, value in logs.items():
-                self.logger.info(f"    {key:15s}: {value}")
+                self.logger.info("    {:15s}: {}".format(key, value))
 
             # evaluate model performance according to configured metric,
             # save best checkpoint as model_best
@@ -202,6 +202,7 @@ class BaseTrainer:
         self.model.train()
         self.train_metrics.reset()
         self._set_epoch(epoch)
+        last_train_metrics = self.train_metrics.result()
 
         for batch_idx, batch in enumerate(
             tqdm(self.train_dataloader, desc="train", total=self.epoch_len)
@@ -224,6 +225,7 @@ class BaseTrainer:
                 self.train_metrics.update(
                     f"grad_norm_{key}", self._get_grad_norm(model)
                 )
+            last_train_metrics = self.train_metrics.result()
 
             # log current results
             if batch_idx % self.log_step == 0:

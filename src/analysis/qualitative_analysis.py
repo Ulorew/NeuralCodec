@@ -9,13 +9,14 @@ import librosa.display
 import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
+import polars.selectors as cs
 import torch
 from hydra.core.global_hydra import GlobalHydra
 from hydra.utils import instantiate
 from IPython.display import Audio, display
-import polars.selectors as cs
 
 from src.datasets.data_utils import get_dataloaders
+from src.metrics.speech_metrics import NISQAMetric, STOIMetric
 from src.trainer import GANInferencer
 from src.utils.init_utils import set_random_seed
 from src.utils.io_utils import ROOT_PATH
@@ -154,11 +155,11 @@ def plot_waveform_pair(item, sample_rate=DEFAULT_SAMPLE_RATE, title=None):
 
 
 def plot_stft_pair(
-        item,
-        sample_rate=DEFAULT_SAMPLE_RATE,
-        n_fft=1024,
-        hop_length=256,
-        title=None,
+    item,
+    sample_rate=DEFAULT_SAMPLE_RATE,
+    n_fft=1024,
+    hop_length=256,
+    title=None,
 ):
     orig, recon = get_audio_pair(item)
     orig_db = _stft_db(orig.numpy(), n_fft=n_fft, hop_length=hop_length)
@@ -175,12 +176,12 @@ def plot_stft_pair(
 
 
 def plot_mel_pair(
-        item,
-        sample_rate=DEFAULT_SAMPLE_RATE,
-        n_fft=1024,
-        hop_length=256,
-        n_mels=80,
-        title=None,
+    item,
+    sample_rate=DEFAULT_SAMPLE_RATE,
+    n_fft=1024,
+    hop_length=256,
+    n_mels=80,
+    title=None,
 ):
     orig, recon = get_audio_pair(item)
     orig_db = _mel_db(orig.numpy(), sample_rate, n_fft, hop_length, n_mels)
@@ -196,33 +197,43 @@ def plot_mel_pair(
     return fig
 
 
-def summarize_dataset_outputs(outputs, sample_rate=DEFAULT_SAMPLE_RATE):
+def summarize_dataset_outputs(
+    outputs, sample_rate=DEFAULT_SAMPLE_RATE, include_speech_metrics=False
+):
     rows = []
+    speech_metrics = None
+
     for item in outputs:
         orig, recon = get_audio_pair(item)
         diff = recon - orig
-        mse = torch.mean(diff ** 2).item()
-        signal_power = torch.mean(orig ** 2).item()
+        mse = torch.mean(diff**2).item()
+        signal_power = torch.mean(orig**2).item()
         snr = 10 * np.log10((signal_power + 1e-12) / (mse + 1e-12))
         orig_np = orig.numpy()
         recon_np = recon.numpy()
-        rows.append(
-            {
-                "split": item.get("split"),
-                "output_id": item.get("output_id"),
-                "seconds": orig.numel() / sample_rate,
-                "mae": torch.mean(torch.abs(diff)).item(),
-                "mse": mse,
-                "snr_db": snr,
-                "orig_rms": float(np.sqrt(np.mean(orig_np ** 2))),
-                "recon_rms": float(np.sqrt(np.mean(recon_np ** 2))),
-                "orig_peak": float(np.max(np.abs(orig_np))),
-                "recon_peak": float(np.max(np.abs(recon_np))),
-                "stft_l1_db": stft_l1_db(orig_np, recon_np),
-                "mel_l1_db": mel_l1_db(orig_np, recon_np, sample_rate),
-                "unique_codes": unique_code_count(item.get("codes")),
-            }
-        )
+        row = {
+            "split": item.get("split"),
+            "output_id": item.get("output_id"),
+            "seconds": orig.numel() / sample_rate,
+            "mae": torch.mean(torch.abs(diff)).item(),
+            "mse": mse,
+            "snr_db": snr,
+            "orig_rms": float(np.sqrt(np.mean(orig_np**2))),
+            "recon_rms": float(np.sqrt(np.mean(recon_np**2))),
+            "orig_peak": float(np.max(np.abs(orig_np))),
+            "recon_peak": float(np.max(np.abs(recon_np))),
+            "stft_l1_db": stft_l1_db(orig_np, recon_np),
+            "mel_l1_db": mel_l1_db(orig_np, recon_np, sample_rate),
+            "unique_codes": unique_code_count(item.get("codes")),
+        }
+        if include_speech_metrics:
+            if speech_metrics is None:
+                speech_metrics = {
+                    "stoi": STOIMetric(sample_rate),
+                    "nisqa": NISQAMetric(sample_rate),
+                }
+            row.update(compute_speech_metrics(orig, recon, speech_metrics))
+        rows.append(row)
 
     frame = pl.DataFrame(rows)
     if frame.shape[0] == 0:
@@ -233,7 +244,9 @@ def summarize_dataset_outputs(outputs, sample_rate=DEFAULT_SAMPLE_RATE):
     return numeric.describe()
 
 
-def compare_summary_tables(named_outputs, sample_rate=DEFAULT_SAMPLE_RATE):
+def compare_summary_tables(
+    named_outputs, sample_rate=DEFAULT_SAMPLE_RATE, include_speech_metrics=False
+):
     rows = []
 
     metrics = [
@@ -244,9 +257,15 @@ def compare_summary_tables(named_outputs, sample_rate=DEFAULT_SAMPLE_RATE):
         "mel_l1_db",
         "unique_codes",
     ]
+    if include_speech_metrics:
+        metrics.extend(["stoi", "nisqa"])
 
     for name, outputs in named_outputs.items():
-        summary = summarize_dataset_outputs(outputs, sample_rate=sample_rate)
+        summary = summarize_dataset_outputs(
+            outputs,
+            sample_rate=sample_rate,
+            include_speech_metrics=include_speech_metrics,
+        )
 
         if summary.height == 0:
             continue
@@ -275,6 +294,20 @@ def save_summary_csv(frame, path):
     return path
 
 
+def compute_speech_metrics(orig, recon, speech_metrics):
+    length = torch.tensor([orig.numel()])
+    orig_batch = orig.unsqueeze(0)
+    recon_batch = recon.unsqueeze(0)
+    return {
+        "stoi": _metric_value_or_none(
+            speech_metrics["stoi"](orig=orig_batch, recon=recon_batch, length=length)
+        ),
+        "nisqa": _metric_value_or_none(
+            speech_metrics["nisqa"](recon=recon_batch, length=length)
+        ),
+    }
+
+
 def get_audio_pair(item):
     length = int(
         item.get("length", min(item["orig"].shape[-1], item["recon"].shape[-1]))
@@ -296,7 +329,7 @@ def stft_l1_db(orig, recon, n_fft=1024, hop_length=256):
 
 
 def mel_l1_db(
-        orig, recon, sample_rate=DEFAULT_SAMPLE_RATE, n_fft=1024, hop_length=256, n_mels=80
+    orig, recon, sample_rate=DEFAULT_SAMPLE_RATE, n_fft=1024, hop_length=256, n_mels=80
 ):
     orig_db = _mel_db(orig, sample_rate, n_fft, hop_length, n_mels)
     recon_db = _mel_db(recon, sample_rate, n_fft, hop_length, n_mels)
@@ -307,6 +340,12 @@ def unique_code_count(codes):
     if codes is None:
         return np.nan
     return int(torch.unique(codes.detach().cpu()).numel())
+
+
+def _metric_value_or_none(value):
+    if value is None:
+        return None
+    return float(value)
 
 
 def _output_sort_key(path):
@@ -362,7 +401,7 @@ def main(config):
     for part in logs.keys():
         for key, value in logs[part].items():
             full_key = part + "_" + key
-            print(f"    {full_key:15s}: {value}")
+            print("    {:15s}: {}".format(full_key, value))
 
 
 if __name__ == "__main__":
