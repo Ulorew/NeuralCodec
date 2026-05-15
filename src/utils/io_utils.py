@@ -3,6 +3,7 @@ from collections import OrderedDict
 from pathlib import Path
 
 ROOT_PATH = Path(__file__).absolute().resolve().parent.parent.parent
+DEMO_DATA_DIR = ROOT_PATH / "demo_data"
 
 
 def read_json(fname):
