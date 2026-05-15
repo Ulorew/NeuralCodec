@@ -101,6 +101,7 @@ ENV/
 .mypy_cache/
 
 # input data, saved log, checkpoints, hydra outputs
+data
 data/
 input/
 saved/
@@ -109,7 +110,7 @@ wandb/
 outputs/
 demo_artifacts/
 demo_data/
-.cache/
+
 
 # editor, os cache directory
 .vscode/

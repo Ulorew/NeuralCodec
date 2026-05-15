@@ -6,7 +6,6 @@ from torch.nn import functional as F
 class RVQCodebook(nn.Module):
     def __init__(self, size, dim, min_nb_ratio=5e-4, eps=1e-6, eta=0.99):
         super().__init__()
-        # TODO: dead updates, knn init
 
         self.size = size
         self.dim = dim
@@ -29,7 +28,7 @@ class RVQCodebook(nn.Module):
         N = B * T
         y = x.reshape(N, D)
 
-        cross = y @ self.book.transpose(0, 1)  # TODO: matrices
+        cross = y @ self.book.transpose(0, 1)
         dist = (
             (y**2).sum(dim=1).unsqueeze(1)
             + (self.book**2).sum(dim=1).unsqueeze(0)
@@ -50,7 +49,7 @@ class RVQCodebook(nn.Module):
 
             self.book.copy_(
                 self.ema_sum / self.ema_cnt.clamp_min(self.eps).unsqueeze(1)
-            )  # TODO: switch to eq?
+            )
 
             # p = self.ema_cnt / self.ema_cnt.sum().clamp_min(self.eps)
             # perp = (-(p * p.clamp_min(self.eps).log()).sum()).exp()

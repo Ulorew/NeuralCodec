@@ -1,63 +1,92 @@
-# SoundStream Neural Codec replica
+# SoundStream Neural Codec Replica
 
 This repository contains a replica of [SoundStream audio codec](https://arxiv.org/abs/2107.03312),
-including training and inference code. The modifications mostly consist of training techniques and model design choices
-the original authors didn't explicitly mention in the article.
+including project-style training, inference, demo, and analysis code for 16 kHz speech.
+The model uses an encoder-decoder with residual vector quantization, adversarial training, and the
+16 kHz stride schedule `[2, 4, 5, 5]`.
 
 ## Demo
 
-For a quick setup & inference guide, check [demo notebook](src/notebooks/demo.ipynb).
+The required demo notebook is [src/notebooks/demo.ipynb](src/notebooks/demo.ipynb).
+In a fresh Colab session, set `AUDIO_SOURCE` to an audio URL and run all cells. The notebook clones
+the repository, installs dependencies, downloads `demo_data/model.pth`, runs the codec, and displays
+the original and re-synthesized audio.
 
-You can download demo model and audio, using the [download script](prepare_demo.py), or more explicitly, using
+The same resources can be downloaded locally with:
 
-```python
-from src.utils.download import resolve_input
-
-model_path = resolve_input(model_source, DATA_DIR)
-audio_path = resolve_input(audio_source, DATA_DIR)
+```bash
+python prepare_demo.py
 ```
-
-with arbitrary sources, including your local files.
-
 
 ## Setup
 
-For a basic `cpu` setup, run
+For a basic CPU setup, run:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-For `gpu` setup, you have to manually install `torch & torchaudio` according to your system configuration.
+For GPU setup, install `torch` and `torchaudio` according to your system configuration.
 Follow [the official instructions](https://pytorch.org/get-started/locally/).
-Please note that the default installation command doesn't include `torchaudio` and you have to add it. Additionally, the
-project
-uses `torch 2.11.0` release. For example,
-if you have `cuda 12.8`, you may use
+Please note that the default installation command may not include `torchaudio`; add it explicitly.
+For CUDA 12.8, use:
 
 ```bash
 pip install torch==2.11.0+cu128 torchaudio==2.11.0+cu128 --index-url https://download.pytorch.org/whl/cu128
 ```
 
-Then you can install the remaining packages using
+Then install the remaining packages:
+
 ```bash
 pip install -r requirements_common.txt
 ```
 
-## Adding the dataset
-To add the dataset to the pipeline, you should choose the dataset consisting of `flac` / `mp3` files, and create a config in
-`src/configs/datasets` for it (in our case, [librispeech](https://www.kaggle.com/datasets/a24998667/librispeech) train-clean partition). In
-the config you need to specify its location and partitions for train and test splits (use [existing configs](src/configs/datasets) for reference).
+## Data
+
+The training setup expects the Kaggle LibriSpeech layout under `data/LibriSpeech`:
+
+```text
+data/LibriSpeech/train-clean-100
+data/LibriSpeech/test-clean
+```
+
+Training uses `train-clean-100`. Final evaluation and the analysis notebook use full utterances from
+`test-clean`. Dataset configs live in [src/configs/datasets](src/configs/datasets).
 
 ## Inference
-For basic inference you can use code in our [demo](src/notebooks/demo.ipynb). For more efficient inference you may use
-[GANInferencer](src/trainer/gan_inferencer.py) class that can process datasets using pretrained model. You can
-find its usage demonstration [here](inference.py).
+
+For single-file inference, use the [demo notebook](src/notebooks/demo.ipynb). For dataset inference:
+
+```bash
+python prepare_demo.py
+python inference.py inferencer.from_pretrained=demo_data/model.pth datasets=librispeech_full inferencer.save_path=librispeech_full
+```
+
+The inferencer writes reconstructed audio and metric tables to the configured output directory.
 
 ## Training
 
-To set up training process, select preferred model configuration in [model config](src/baseline.yaml),
-link your dataset there, and run the [training script](train.py).
+The default training config is [src/configs/baseline.yaml](src/configs/baseline.yaml).
+It trains on 0.5 second random crops of 16 kHz `train-clean-100` speech and logs individual loss terms,
+audio examples, metrics, and codebook perplexity through Comet ML by default.
+
+```bash
+python train.py
+```
+
+Configure Comet credentials before training if they are not already available in your environment.
+
+## Analysis and Results
+
+The report analysis notebook is [src/notebooks/analysis.ipynb](src/notebooks/analysis.ipynb).
+It contains qualitative waveform/spectrogram/audio comparisons for LibriSpeech, external English speech,
+and Russian speech, plus quantitative statistics and final full-test metrics.
+
+Current full LibriSpeech `test-clean` metrics from the analysis notebook:
+
+| Dataset | STOI | NISQA |
+| --- | ---: | ---: |
+| LibriSpeech test-clean full | 0.8516 | 3.4311 |
 
 ## Details
 
@@ -71,7 +100,7 @@ We don't implement RVQ k-means initialization, leaving it on dead code replaceme
 
 Training lasts for 200 epochs, each one consists of 100 steps. Batch size is 64.
 
-For additional configuration details check [the config](src/configs/baseline.yaml).
+For additional configuration details, check [src/configs/baseline.yaml](src/configs/baseline.yaml).
 
 
 

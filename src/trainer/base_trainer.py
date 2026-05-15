@@ -123,7 +123,7 @@ class BaseTrainer:
             *(f"grad_norm_{key}" for key in self.optimizer.keys()),
             *[m.name for m in self.metrics["train"]],
             writer=self.writer,
-        )  # TODO dehardcode
+        )
         self.evaluation_metrics = MetricTracker(
             *self.config.writer.loss_names,
             *[m.name for m in self.metrics["inference"]],
@@ -175,8 +175,7 @@ class BaseTrainer:
             for key, value in logs.items():
                 self.logger.info("    {:15s}: {}".format(key, value))
 
-            # evaluate model performance according to configured metric,
-            # save best checkpoint as model_best
+            # evaluate model performance according to configured metric
             best, stop_process, not_improved_count = self._monitor_performance(
                 logs, not_improved_count
             )
@@ -220,7 +219,7 @@ class BaseTrainer:
                 else:
                     raise e
 
-            for key in self.optimizer.keys():  # TODO dehardcode
+            for key in self.optimizer.keys():
                 model = getattr(self.model, key)
                 self.train_metrics.update(
                     f"grad_norm_{key}", self._get_grad_norm(model)
@@ -558,9 +557,9 @@ class BaseTrainer:
 
         Args:
             epoch (int): current epoch number.
-            save_best (bool): if True, rename the saved checkpoint to 'model_best.pth'.
+            save_best (bool): if True, save the best checkpoint as 'model.pth'.
             only_best (bool): if True and the checkpoint is the best, save it only as
-                'model_best.pth'(do not duplicate the checkpoint as
+                'model.pth'(do not duplicate the checkpoint as
                 checkpoint-epochEpochNumber.pth)
         """
         arch = type(self.model).__name__
@@ -584,11 +583,11 @@ class BaseTrainer:
                 self.writer.add_checkpoint(filename, str(self.checkpoint_dir.parent))
             self.logger.info(f"Saving checkpoint: {filename} ...")
         if save_best:
-            best_path = str(self.checkpoint_dir / "model_best.pth")
+            best_path = str(self.checkpoint_dir / "model.pth")
             torch.save(state, best_path)
             if self.config.writer.log_checkpoints:
                 self.writer.add_checkpoint(best_path, str(self.checkpoint_dir.parent))
-            self.logger.info("Saving current best: model_best.pth ...")
+            self.logger.info("Saving current best: model.pth ...")
 
     def _resume_checkpoint(self, resume_path):
         """
@@ -604,9 +603,11 @@ class BaseTrainer:
         """
         resume_path = str(resume_path)
         self.logger.info(f"Loading checkpoint: {resume_path} ...")
+        # Checkpoints contain optimizer state and config objects, so plain
+        # weights-only loading is not enough here.
         checkpoint = torch.load(
             resume_path, map_location=self.device, weights_only=False
-        )  # TODO fix weights_only
+        )
         self.start_epoch = checkpoint["epoch"] + 1
         self.mnt_best = checkpoint["monitor_best"]
 
@@ -655,9 +656,10 @@ class BaseTrainer:
             self.logger.info(f"Loading model weights from: {pretrained_path} ...")
         else:
             print(f"Loading model weights from: {pretrained_path} ...")
+        # Model files may be full training checkpoints with config metadata.
         checkpoint = torch.load(
             pretrained_path, self.device, weights_only=False
-        )  # TODO fix weights_only
+        )
 
         if checkpoint.get("state_dict") is not None:
             self.model.load_state_dict(checkpoint["state_dict"])

@@ -1,0 +1,13 @@
+test_clean:
+  _target_: src.datasets.AudioDataset
+  dataset_name: "LibriSpeech"
+  sampling_rate: 16000
+  window_size: null
+  base_factor: 200
+  fixed_cuts: True
+  shuffle_index: True
+  minimal_length: 2
+  maximal_length: 40
+  custom_index: True
+  limit: 128
+  name: "test-clean"
