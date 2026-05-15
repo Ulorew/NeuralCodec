@@ -1,3 +1,5 @@
+import math
+
 import pandas as pd
 
 
@@ -35,6 +37,12 @@ class MetricTracker:
             value (float): metric value on the batch.
             n (int): how many times to count this value.
         """
+        if value is None:
+            return
+        value = float(value)
+        if not math.isfinite(value):
+            return
+
         # if self.writer is not None:
         #     self.writer.add_scalar(key, value)
         self._data.loc[key, "total"] += value * n

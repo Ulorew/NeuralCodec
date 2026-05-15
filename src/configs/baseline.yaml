@@ -29,8 +29,8 @@ lr_scheduler:
 loss_function:
   gen:
     _target_: src.loss.GeneratorLoss
-    l_adv: 0.15
-    l_feat: 15
+    l_adv: 0.3
+    l_feat: 30
     l_rec: 1
     l_comm: 1
     rec_n_mels: 64

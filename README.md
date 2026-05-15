@@ -44,9 +44,15 @@ Then you can install the remaining packages using
 pip install -r requirements_common.txt
 ```
 
+## Adding the dataset 
+
 ## Inference
 
 ## Training
+
+## Details
+
+We limit the data used for evaluation with 60 seconds.
 
 ## Citation
 

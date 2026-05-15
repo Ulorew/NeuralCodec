@@ -15,6 +15,7 @@ hydra-core
 ipykernel
 librosa
 requests
+polars
 
 black
 isort
